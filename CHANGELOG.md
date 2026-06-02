@@ -15,6 +15,69 @@ Phase F (write integration on Bradbury) in progress. The Marketplace happy path 
 
 20 writes remain pending in the frontend: 7 disputes and claims, 6 PredictionMarket, 6 admin. Next milestone: extend the `TradeActionsPanel` pattern to cover the disputes block. Validation of disputes is blocked by production timing constants on the live v1.4.7 contract; a demo deployment with reduced timing constants is planned.
 
+## [Demo contracts v903] (2026-05-28)
+
+### MarketplaceDemo.py v903
+
+Calibrated timing windows so that the full dispute flow can be exercised against the real Bradbury Finality Window of roughly 25 to 40 minutes per transaction. With the v900 demo timings (5 to 15 minutes), the dispute window would close before the open transaction reached FINALIZED, blocking validation of the dispute paths in the frontend.
+
+| Constant | v900 demo | v903 demo |
+|---|---|---|
+| `DISPUTE_WINDOW_SECONDS` | 5 min | 1h |
+| `DISPUTE_RESPONSE_WINDOW_SECONDS` | 5 min | 1h |
+| `ELIGIBILITY_PERIOD_SECONDS` | 5 min | 1h |
+| `MAX_SHIPPING_DELAY_SECONDS` | 5 min | 1h |
+| `ADMIN_FORCE_REFUND_DELAY_SECONDS` | 10 min | 2h |
+| `PUBLIC_FORCE_REFUND_DELAY_SECONDS` | 15 min | 3h |
+
+Cascade preserved: `DISPUTE_WINDOW < RESPONSE_WINDOW < ADMIN_FORCE < PUBLIC_FORCE`. `CONTRACT_VERSION` bumped from `u16(902)` to `u16(903)`. No changes to logic, storage layout, function signatures, or views.
+
+### PredictionMarketDemo.py v902
+
+Bumped `CONTRACT_VERSION` from `u16(901)` to `u16(902)`. No source changes other than the version constant. The bump exists to distinguish the redeployment that wires the prediction market into `MarketplaceDemo v903` from the original v901 deployment, which was permanently linked to the deprecated `MarketplaceDemo v900` via the one-shot `set_marketplace_address` setter.
+
+### Status
+
+Both contracts deployed to Bradbury and operational. Admin address `0xF27E3A6d7Bf4BfC0A837020FD74E73055aF17D53` for both. Cross-contract handshake `fee_sender` completed end-to-end.
+
+| Contract | Address | Deploy TX |
+|---|---|---|
+| MarketplaceDemo v903 | `0xB84B0683618898769EaCdca7062f9439510878CE` | `0xb569954e6285d35f3bb70dfa60bb7bdcb9ec0af791918ee54807da95edfa7861` |
+| PredictionMarketDemo v902 | `0x82d83E3354A1896EA87684ADE9892834e52f1c0a` | `0x6c3d4b33bf1ae2b0603f7f30a3f2ee500b5efcd4382cea6f9422e8f7cca3b9e4` |
+
+Handshake transactions:
+
+| Step | TX |
+|---|---|
+| `PM.set_marketplace_address(v903)` | `0xe1d50fc70de6894f32dc298c260f78bb71073167ae2a030816bb3a98c3c7539a` |
+| `Marketplace.set_authorized_fee_sender(PM)` | `0x709f85b7da07b1b317d234a154ae8c7724d19134e4316cab0442cf2cc998dd64` |
+| `PM.accept_marketplace_fee_authorization` | `0x09f61cdcee3d0ac8ebb6f50851feb9aeabfc4632fcd489ae8491ffb5786ecf67` |
+
+### Dispute flow validated in vivo
+
+Trade #2 (`Rolex GMT Master`, 0.001 GEN) on `MarketplaceDemo v903` exercised the full dispute path from `create_listing` through LLM verdict:
+
+1. `create_listing` by seller `0xF27E3A6d7Bf4BfC0A837020FD74E73055aF17D53`.
+2. `accept_listing` by buyer `0xFeE34b22628Fa0D5B8fA64Ba7c49835EcB18e752`.
+3. `mark_shipped` by seller, carrier `UPS`.
+4. `open_dispute` by buyer with documented evidence of damage on arrival, posting the 5% bond.
+5. `respond_to_dispute` by seller with documented evidence of pre-shipment inspection, posting the 5% bond.
+6. `_resolve_dispute_with_llm` resolved automatically inside the `respond_to_dispute` transaction. Five-validator consensus produced a verdict.
+
+LLM verdict on trade #2: `buyer_wins = true`. Reasoning string stored on-chain:
+
+> "Buyer documented fresh damage upon arrival. Seller's shipping evidence shows no carrier-reported damage, suggesting pre-shipment condition mismatch. Buyer provided timely notice, seller did not respond."
+
+Final state: `STATE_COMPLETED` (4), `disputed = true`, `llm_verdict_buyer_wins = true`, `buyer_bond` and `seller_bond` both posted at 50000000000000 wei. Payout flowed through `_payout_dispute_buyer_wins`: buyer received `price + buyer_bond + seller_bond`.
+
+### Dispute paths not yet exercised in vivo on v903
+
+- `claim_dispute_default` (response window expires, initiator claims default).
+- `force_refund_stuck_dispute` (admin force after 2h with no respondent).
+- `claim_stuck_dispute_refund` (permissionless force after 3h with no respondent).
+
+These paths remain validated only at the logic level via prior Studionet runs.
+
 ## [Demo contracts v902] (2026-05-26)
 
 ### MarketplaceDemo.py v902

@@ -53,7 +53,16 @@ Both contracts are singletons (one deployment serves all trades / all markets), 
 | Marketplace | `0x29f58D5ACC8b85250D3Dae2692DEADED346c6e67` | 1.4.4 |
 | PredictionMarket | `0x2b0B5f76Db290D77DF53250B7f0540fc2D8cb48E` | 1.0.4 |
 
-Both contracts are wired:
+**Testnet Bradbury Demo (Chain ID 4221):**
+
+| Contract | Address | Version |
+|---|---|---|
+| MarketplaceDemo | `0xB84B0683618898769EaCdca7062f9439510878CE` | 903 |
+| PredictionMarketDemo | `0x82d83E3354A1896EA87684ADE9892834e52f1c0a` | 902 |
+
+The Bradbury Demo deployment uses reduced timing constants (1 to 3 hours) calibrated for the live Finality Window of roughly 25 to 40 minutes. The dispute lifecycle has been exercised end-to-end with LLM resolution on this deployment. See `CHANGELOG.md` for the full transaction-level evidence.
+
+Both deployments are wired:
 - `Marketplace.authorized_fee_sender` points at the PredictionMarket.
 - `PredictionMarket.marketplace_address` points at the Marketplace (one-shot, immutable).
 
@@ -72,6 +81,8 @@ A full end-to-end run was executed on Studionet on May 17, 2026. The on-chain ev
 Full transaction-level evidence, validator quorums, LLM reasoning, threat model coverage matrix, and honest disclosure of paths NOT exercised: see [`docs/DEMO_RESULTS.md`](./docs/DEMO_RESULTS.md).
 
 The demo deployment uses reduced timing constants (5 minutes instead of 1 hour / 24 hours) so that evaluators can observe the full market lifecycle in a single session. The compromise is transparent and documented; production values must be restored before mainnet. See the "Demo timings disclosure" section of `docs/PREDICTION_MARKET_DESIGN.md`.
+
+A second validation run was executed on Testnet Bradbury on May 28, 2026, against `MarketplaceDemo v903`. Trade #2 (Rolex GMT Master, 0.001 GEN) was carried from `create_listing` through `open_dispute`, `respond_to_dispute`, and LLM verdict in a single session, with the seller and buyer each posting a 5% bond. The verdict was `buyer_wins = true`, reasoning string stored on-chain. Transaction hashes are listed in `CHANGELOG.md` under "Demo contracts v903".
 
 ## Repository structure
 
@@ -110,19 +121,23 @@ All technical documentation is in `docs/`. Quick links:
 
 **Done:**
 
-- Marketplace v1.4.4 deployed, happy path and dispute paths exercised.
-- PredictionMarket v1.0.4 deployed, subjective markets resolved end-to-end.
+- Marketplace v1.4.4 deployed on Studionet, happy path and dispute paths exercised.
+- PredictionMarket v1.0.4 deployed on Studionet, subjective markets resolved end-to-end.
 - Cross-contract integration validated (read + value-transfer write).
-- Threat model with 37 documented threats and mitigations.
+- Threat model with 38 documented threats and mitigations.
+- Bradbury Demo deployment (MarketplaceDemo v903 + PredictionMarketDemo v902) wired and operational.
+- Dispute lifecycle exercised end-to-end on Bradbury with on-chain LLM verdict.
+- Frontend Phase F: 12 of 24 writes integrated. Happy path (5 writes) validated in vivo. Disputes block (5 writes) integrated; `open_dispute` and `respond_to_dispute` validated in vivo on Bradbury Demo.
 
 **Pending:**
 
 - Restore production timing constants in PredictionMarket v1.1.0 before mainnet.
 - Run an objective market end-to-end (the path is implemented, not exercised).
 - Run a `METRIC_LLM_SELLER_TRUSTWORTHY` market with multi-trade seller history.
+- Exercise the three stuck-funds paths in vivo: `claim_dispute_default`, `force_refund_stuck_dispute`, `claim_stuck_dispute_refund`.
+- Frontend: 12 writes pending (6 PredictionMarket, 6 admin).
 - Independent security review.
 - Permissionless market creation with creator bond.
-- Frontend.
 
 **Out of scope for MVP** (deferred to future work):
 
