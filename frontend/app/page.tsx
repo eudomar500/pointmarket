@@ -273,7 +273,7 @@ export default function Page() {
           <div>
             <h2 className="text-4xl font-medium tracking-tight">Why GenLayer.</h2>
             <p className="mt-6 text-[var(--text-secondary)] text-base leading-relaxed max-w-[480px]">
-              Trustless dispute resolution requires natural-language judgment. Solidity cannot make those calls without a centralized oracle or arbiter. GenLayer's Optimistic Democracy uses LLM-running validators as the consensus layer. The validators are the arbiters. No human moderation. No off-chain oracle. No single point of trust.
+              Trustless dispute resolution requires natural-language judgment. Solidity cannot make those calls without a centralized oracle or arbiter. GenLayer&apos;s Optimistic Democracy uses LLM-running validators as the consensus layer. The validators are the arbiters. No human moderation. No off-chain oracle. No single point of trust.
             </p>
             <a 
               href="https://genlayer.com" 
