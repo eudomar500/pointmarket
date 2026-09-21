@@ -129,6 +129,7 @@ Two SDK behaviours make this worse than it needs to be:
 | file | what it does |
 |---|---|
 | `REVERT_ANALYSIS.md` | full method and raw sweeps: the revert diagnosis, the pubdata sweep, the tiny crate, the gas cap search, the reverted deploy, the on-chain result, and the Marketplace.py measurement |
+| `GAS_CAP_HISTORY.md` | when and why the 2^24 per-transaction gas cap appeared: the upgrade block that imposed it, its origin in ZKsync OS and EIP-7825, and what is still unverified |
 | `NOTES.md` | preparation: the verifier artifact and its import set, why the CLI and the tls repo's own deploy script cannot target Bradbury, the RPC methods verified live, and the open risks |
 | `deploy_bradbury.py` | builds the `addTransaction` calldata, estimates, refuses anything over the cap, signs at 3x, broadcasts, waits for the L2 receipt, decodes `NewTransaction`. `--estimate-only` stops before signing |
 | `diagnose_revert.py` | replays the same `addTransaction` call through `eth_call` instead of `eth_estimateGas` and prints the raw revert data. Sends nothing, needs no key |
@@ -140,6 +141,11 @@ Two SDK behaviours make this worse than it needs to be:
 | `size_sweep.py` | sweeps payload size through `eth_estimateGas` to find the pubdata ceiling |
 | `estimate_source.py` | estimates the deploy gas for a Python contract source file |
 | `strip_source.py` | strips comments, blank lines and docstrings from a contract, preserving the line-1 runner directive and f-string contents, verified by comparing `ast.dump` |
+| `gas_cap_history_scan.py` | batched, concurrent `eth_getBlockByNumber(full=true)` fetcher over the L2 RPC, and the single-window summary the other scanners build on |
+| `gas_cap_grid.py` | samples N windows of consecutive blocks across a range, reporting the transactions above 2^24 in each |
+| `gas_cap_bisect.py` | bisects a block range on the predicate "this window contains a transaction above 2^24", with per-window activity counts so a quiet stretch is not mistaken for the cap |
+| `gas_cap_edge.py` | contiguous scan of a bracketed range, every block, to find the exact last transaction above the cap |
+| `gas_hist.py` | gas-limit distribution of a block window, used to size the windows the other scanners sample |
 | `tiny-wasm/` | the probe crate: `Cargo.toml`, `src/main.rs` (`no_std`), `src/main_std_reference.rs.txt` (the first `std` build, kept for reference), `strip_exports.py`, and the built `tiny_probe.wasm` |
 
 Three of those scripts point at artifacts that are deliberately not vendored.

@@ -608,6 +608,47 @@ cannot be upgraded by redeploy. v1.5 has to be split across contracts. Closing
 a 12-million-gas gap by deleting code would mean removing about 16 kB of real
 logic, which is not an editing problem.
 
+**When the ceiling moved, and where it comes from.** It was traced to a single
+block (`experiments/wasm-deploy-probe/GAS_CAP_HISTORY.md`, full method there).
+The cap arrived with a protocol upgrade applied to the L2 at **block
+21,205,822, 2026-09-09 12:09:27 UTC**; the chain now answers
+`web3_clientVersion` with `zksync-os/v0.24.0`. The last transaction on the
+chain carrying a gas limit above 2^24 is that upgrade transaction itself, at
+72,000,000 gas (type `0x7e`, UpgradeTxType, tx
+`0x756696b4c9434f059369d35efed4e9f852f4a4f7343d319a9b576777b4f56fdb`), which
+it could do because service transactions are exempt from the check. Before it,
+limits of 70-100 million were routine -- 11,863 of them in one 40,000-block
+window eight hours earlier; after it, not one transaction in any window sampled
+through 2026-09-21 exceeds 16,777,216, and at least one sits exactly on it. The
+block `gasLimit` header field is 100,000,000 before and after, so this is not a
+block-level parameter change.
+
+The value is not GenLayer's. It is `DEFAULT_MAX_TX_GAS_LIMIT = 1 << 24` in
+ZKsync OS (`matter-labs/zksync-os`, tag `v0.4.0`,
+`zk_ee/src/system/metadata/chain_config.rs:15`), the EIP-7825 per-transaction
+gas cap, introduced upstream by PR #683 "feat: add runtime chain config",
+merged 2026-06-16. It is a **chain configuration parameter, not a fixed
+constant**: it is committed into the batch public input, a chain admin may
+raise it, and `validate()` refuses only values *below* 2^24. Enforcement is in
+the bootloader against `min(block_gas_limit, max_tx_gas_limit)` and is skipped
+under `Config::SIMULATION`, which is exactly why `eth_call` and
+`eth_estimateGas` still accept a `gas` field of 100,000,000 while
+`eth_sendRawTransaction` refuses 2^24+1.
+
+GenLayer published nothing about this upgrade: no changelog entry, release note
+or docs page mentions the cap or the date. Other builders hit the same wall
+independently -- `genlayerlabs/genlayer-cli` issue #419, filed 2026-09-15, six
+days after the upgrade, reports a 46 kB contract refused with `gas limit too
+high`, and a comment of 2026-09-18 brackets the ceiling at 16,777,216 accepted
+/ 16,800,000 refused, matching the binary search in B.7. That issue is still
+open with no maintainer answer. Two points remain **UNVERIFIED**: whether
+GenLayer chose to keep the 2^24 default or simply inherited it, since the
+upstream design lets a chain admin raise it and no public artifact records a
+decision; and the exact code path in the running `zksync-os/v0.24.0` build that
+arms the submission-time check, since the newest public release of
+`zksync-os-server` is v0.23.0 and public main would not arm the pool-level
+check on its own.
+
 --------------------------------------------------------------------------------
 ## C. Scheduling and events
 
@@ -968,40 +1009,63 @@ Penumbra's and Aztec's shielded transaction models; Shutter Network's threshold
 encryption for mempool privacy, which matches GenLayer's committee structure
 most closely.
 
-**9. Contract size: chunked deployment, or code storage outside calldata (B.9,
-MISSING).** A whole contract has to arrive in one transaction's calldata, and
-that transaction is capped at 2^24 = 16,777,216 gas, which at roughly 730 gas
-per byte of source is about 20 kB of code -- less once the 3x margin B.8 shows
-is necessary is applied. This repository's own `contracts/Marketplace.py`
-v1.4.7 is 35,650 bytes and was deployed on Bradbury on 2026-05-21 at block
-10,579,477 with a gas limit of 28,759,916 and 26,619,597 gas consumed,
-successfully. The identical bytes estimate at 28,902,212 gas today, 172.3% of
-the cap, and are refused at `eth_sendRawTransaction` with `gas limit too high`
-before execution. The gas schedule barely moved; the ceiling did. A contract
-that was deployable in May is not deployable in September, and nothing about
-the contract changed. Stripping is not a lever: the file has one comment (the
-mandatory runner directive), no docstrings, and removing every removable blank
-line saves 93 bytes and 68,181 gas. Below the gas cap sits a second, looser L2
-ceiling, `BlockPubdataLimitReached` between 52,736 and 52,992 bytes of payload,
-so even lifting the gas cap alone would only move the wall to about 52 kB. The
-practical consequences today are that v1.4.7 cannot be redeployed or upgraded
-by redeploy, that v1.5 must be split across contracts for reasons that have
-nothing to do with its design, and that the 210 KB GenLayer Labs WASM verifier
-(F) is undeployable by any SDK. Minimal API: chunked deployment -- an
-`initCode` accumulator addressed by hash, filled by N transactions and
-finalized by one, or a `deployFromBlobs`-style path that keeps code out of
-calldata pubdata. Prior art: EIP-4844 blobs and EIP-7702-era discussions of
-code sourcing on Ethereum; Solana's `BPFLoaderUpgradeable` `Write`
-instructions, which stream a program into a buffer account across many
-transactions and then deploy from it, solving exactly this problem for exactly
-this reason; NEAR's separate `DEPLOY_CONTRACT` action priced off storage rather
-than transaction calldata. **Direct question for the protocol team: is the
-2^24 per-transaction gas cap intended?** It is not the block limit
-(100,000,000), it is not exposed through `zks_getFeeParams` on this node, it
-had to be found by binary search on `eth_sendRawTransaction` validation, and it
-retroactively invalidated a deployment this chain itself accepted four months
-earlier. If it is intended, the deployable contract size needs to be published
-(request 7); if it is not, it is a regression.
+**9. Contract size: raise `max_tx_gas_limit` on Bradbury (B.9, MISSING).** A
+whole contract has to arrive in one transaction's calldata, and that
+transaction is capped at 2^24 = 16,777,216 gas, which at roughly 730 gas per
+byte of source is about 20 kB of code -- less once the 3x margin B.8 shows is
+necessary is applied. This repository's own `contracts/Marketplace.py` v1.4.7
+is 35,650 bytes and was deployed on Bradbury on 2026-05-21 at block 10,579,477
+with a gas limit of 28,759,916 and 26,619,597 gas consumed, successfully. The
+identical bytes estimate at 28,902,212 gas today, 172.3% of the cap, and are
+refused at `eth_sendRawTransaction` with `gas limit too high` before execution.
+The gas schedule barely moved; the ceiling did, at a single known block --
+21,205,822, 2026-09-09 12:09:27 UTC (B.9). A contract that was deployable in
+May is not deployable in September, and nothing about the contract changed.
+Stripping is not a lever: the file has one comment (the mandatory runner
+directive), no docstrings, and removing every removable blank line saves 93
+bytes and 68,181 gas. The practical consequences today are that v1.4.7 cannot
+be redeployed or upgraded by redeploy, that v1.5 must be split across contracts
+for reasons that have nothing to do with its design, and that the 210 KB
+GenLayer Labs WASM verifier (F) is undeployable by any SDK. Other teams are
+blocked in the same way: `genlayerlabs/genlayer-cli` issue #419, open since
+2026-09-15, is a 46 kB contract that cannot be deployed or patched.
+
+**The primary ask is a configuration change, not a protocol feature.** The cap
+is `DEFAULT_MAX_TX_GAS_LIMIT = 1 << 24` in ZKsync OS, EIP-7825's
+per-transaction gas limit, and ZKsync OS treats it as a **chain configuration
+parameter that the chain admin may raise**: `ChainConfig::validate()` rejects
+only values *below* 2^24, and the config is committed into the batch public
+input, so raising it is a supported, proof-bound operation rather than a patch.
+Concretely: set `max_tx_gas_limit` for Bradbury to something that clears a
+realistic Intelligent Contract with the 3x margin -- 48,000,000 would restore
+the 35 kB that deployed in May and leave headroom -- and publish the value
+(request 7). No fork of ZKsync OS, no change to GenVM, and no new SDK surface
+is required. Until then, please also state the ceiling in the network
+documentation, because today it is discoverable only by binary search on
+`eth_sendRawTransaction` and by the receipt of a failed deploy.
+
+**Structural fallback, if the cap has to stay.** If the 2^24 default is
+deliberate and permanent, then contract size needs a path that does not run
+through one transaction's calldata, because raising the cap alone only moves
+the wall to about 52 kB anyway: the second, looser L2 ceiling is
+`BlockPubdataLimitReached`, between 52,736 and 52,992 bytes of payload (B.8).
+Minimal API: chunked deployment -- an `initCode` accumulator addressed by hash,
+filled by N transactions and finalized by one, or a `deployFromBlobs`-style
+path that keeps code out of calldata pubdata. Prior art: EIP-4844 blobs and
+EIP-7702-era discussions of code sourcing on Ethereum; Solana's
+`BPFLoaderUpgradeable` `Write` instructions, which stream a program into a
+buffer account across many transactions and then deploy from it, solving
+exactly this problem for exactly this reason; NEAR's separate `DEPLOY_CONTRACT`
+action priced off storage rather than transaction calldata.
+
+**Direct question for the protocol team:** is Bradbury's `max_tx_gas_limit`
+still at the ZKsync OS default of 2^24 by choice? Whether the default was kept
+deliberately or simply inherited with the 2026-09-09 upgrade is **UNVERIFIED**;
+no changelog, release note or docs page records the upgrade, the cap or a
+decision, and issue #419 has no maintainer answer. The value retroactively
+invalidated a deployment this chain itself accepted four months earlier, so if
+it is deliberate it needs publishing, and if it is not it is a regression with
+a one-line fix.
 
 **1. Native signature verification (B.6, MISSING).** Every evidence design that
 is not "ask a language model what it thinks the page says" ends at a signature
