@@ -1,4 +1,4 @@
-# Poinmarket
+# Pointmarket
 
 A trust-minimized P2P marketplace with an integrated meta-prediction market, built on [GenLayer](https://genlayer.com) Intelligent Contracts.
 
