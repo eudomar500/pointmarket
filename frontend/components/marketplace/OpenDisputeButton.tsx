@@ -7,9 +7,12 @@ import { useCountdown, formatRemaining } from "@/lib/hooks/useCountdown";
 import { DEFAULT_NETWORK } from "@/lib/genlayer/contracts";
 import { getMarketplaceTimings } from "@/lib/genlayer/timings";
 import DisputeEvidenceDialog from "./DisputeEvidenceDialog";
+import type { TxMethod } from "@/lib/tx/types";
 
 const DISPUTE_BOND_BPS = 500n;
 const BPS_DENOMINATOR = 10000n;
+
+const METHOD: TxMethod = "open_dispute";
 
 interface OpenDisputeButtonProps {
   tradeId: number;
@@ -56,8 +59,8 @@ export default function OpenDisputeButton({
   const bond = (price * DISPUTE_BOND_BPS) / BPS_DENOMINATOR;
 
   const buttonLabel = (() => {
-    if (disabled && activeMethod) {
-      return `Processing ${activeMethod.replace(/_/g, " ")}...`;
+    if (disabled && activeMethod === METHOD) {
+      return "Processing...";
     }
     return `Open dispute (${formatRemaining(remainingSeconds)} left)`;
   })();

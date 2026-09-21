@@ -7,6 +7,9 @@ import { useMarkShipped } from "@/lib/hooks/useMarkShipped";
 import { useWalletStore } from "@/lib/wallet/store";
 import { NETWORKS } from "@/config/networks";
 import { DEFAULT_NETWORK } from "@/lib/genlayer/contracts";
+import type { TxMethod } from "@/lib/tx/types";
+
+const METHOD: TxMethod = "mark_shipped";
 
 interface MarkShippedDialogProps {
   tradeId: number;
@@ -195,7 +198,7 @@ export default function MarkShippedDialog({ tradeId, seller, state, disabled, ac
         disabled={disabled}
         className="w-full px-4 py-2.5 rounded-lg bg-[var(--accent-primary)] text-[var(--bg-deep)] font-medium hover:bg-[var(--accent-dim)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {disabled && activeMethod ? `Processing ${activeMethod.replace(/_/g, " ")}...` : "Mark as shipped"}
+        {disabled && activeMethod === METHOD ? "Processing..." : "Mark as shipped"}
       </button>
       {open && typeof window !== "undefined" ? createPortal(modalContent, document.body) : null}
     </div>

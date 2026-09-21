@@ -8,6 +8,9 @@ import { useWalletStore } from "@/lib/wallet/store";
 import { NETWORKS } from "@/config/networks";
 import { DEFAULT_NETWORK } from "@/lib/genlayer/contracts";
 import { formatGenBalance } from "@/lib/wallet/format";
+import type { TxMethod } from "@/lib/tx/types";
+
+const METHOD: TxMethod = "accept_listing";
 
 interface AcceptListingButtonProps {
   tradeId: number;
@@ -170,7 +173,7 @@ export default function AcceptListingButton({
         disabled={disabled}
         className="w-full px-4 py-2.5 rounded-lg bg-[var(--accent-primary)] text-[var(--bg-deep)] font-medium hover:bg-[var(--accent-dim)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {disabled && activeMethod ? `Processing ${activeMethod.replace(/_/g, " ")}...` : `Buy now (${formatGenBalance(price)})`}
+        {disabled && activeMethod === METHOD ? "Processing..." : `Buy now (${formatGenBalance(price)})`}
       </button>
       {open && typeof window !== "undefined" ? createPortal(modalContent, document.body) : null}
     </div>

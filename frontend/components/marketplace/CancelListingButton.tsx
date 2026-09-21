@@ -7,6 +7,9 @@ import { useCancelListing } from "@/lib/hooks/useCancelListing";
 import { useWalletStore } from "@/lib/wallet/store";
 import { NETWORKS } from "@/config/networks";
 import { DEFAULT_NETWORK } from "@/lib/genlayer/contracts";
+import type { TxMethod } from "@/lib/tx/types";
+
+const METHOD: TxMethod = "cancel_listing";
 
 interface CancelListingButtonProps {
   tradeId: number;
@@ -142,7 +145,7 @@ export default function CancelListingButton({ tradeId, seller, state, disabled, 
         disabled={disabled}
         className="w-full px-4 py-2.5 rounded-lg border border-[var(--border-subtle)] bg-transparent text-[var(--text-primary)] font-medium hover:bg-[var(--bg-elevated-2)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {disabled && activeMethod ? `Processing ${activeMethod.replace(/_/g, " ")}...` : "Cancel listing"}
+        {disabled && activeMethod === METHOD ? "Processing..." : "Cancel listing"}
       </button>
       {open && typeof window !== "undefined" ? createPortal(modalContent, document.body) : null}
     </div>

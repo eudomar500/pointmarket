@@ -4,10 +4,13 @@ import { useState } from "react";
 import { useRespondToDispute } from "@/lib/hooks/useRespondToDispute";
 import { useWalletStore } from "@/lib/wallet/store";
 import DisputeEvidenceDialog from "./DisputeEvidenceDialog";
+import type { TxMethod } from "@/lib/tx/types";
 
 const DISPUTE_BOND_BPS = 500n;
 const BPS_DENOMINATOR = 10000n;
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+
+const METHOD: TxMethod = "respond_to_dispute";
 
 interface RespondToDisputeButtonProps {
   tradeId: number;
@@ -55,8 +58,8 @@ export default function RespondToDisputeButton({
   const bond = (price * DISPUTE_BOND_BPS) / BPS_DENOMINATOR;
 
   const buttonLabel = (() => {
-    if (disabled && activeMethod) {
-      return `Processing ${activeMethod.replace(/_/g, " ")}...`;
+    if (disabled && activeMethod === METHOD) {
+      return "Processing...";
     }
     return "Respond to dispute";
   })();

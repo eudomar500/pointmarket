@@ -10,6 +10,9 @@ import { NETWORKS } from "@/config/networks";
 import { DEFAULT_NETWORK } from "@/lib/genlayer/contracts";
 import { getMarketplaceTimings } from "@/lib/genlayer/timings";
 import { formatGenBalance } from "@/lib/wallet/format";
+import type { TxMethod } from "@/lib/tx/types";
+
+const METHOD: TxMethod = "claim_stuck_dispute_refund";
 
 interface ClaimStuckDisputeRefundButtonProps {
   tradeId: number;
@@ -69,8 +72,8 @@ export default function ClaimStuckDisputeRefundButton({
   };
 
   const buttonLabel = (() => {
-    if (disabled && activeMethod) {
-      return `Processing ${activeMethod.replace(/_/g, " ")}...`;
+    if (disabled && activeMethod === METHOD) {
+      return "Processing...";
     }
     if (!isReady) {
       return `Public refund in ${formatRemaining(remainingSeconds)}`;

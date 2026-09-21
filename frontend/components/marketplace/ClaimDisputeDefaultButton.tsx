@@ -10,8 +10,11 @@ import { NETWORKS } from "@/config/networks";
 import { DEFAULT_NETWORK } from "@/lib/genlayer/contracts";
 import { getMarketplaceTimings } from "@/lib/genlayer/timings";
 import { formatGenBalance } from "@/lib/wallet/format";
+import type { TxMethod } from "@/lib/tx/types";
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+
+const METHOD: TxMethod = "claim_dispute_default";
 
 interface ClaimDisputeDefaultButtonProps {
   tradeId: number;
@@ -84,8 +87,8 @@ export default function ClaimDisputeDefaultButton({
   };
 
   const buttonLabel = (() => {
-    if (disabled && activeMethod) {
-      return `Processing ${activeMethod.replace(/_/g, " ")}...`;
+    if (disabled && activeMethod === METHOD) {
+      return "Processing...";
     }
     if (!isReady) {
       return `Win by default in ${formatRemaining(remainingSeconds)}`;

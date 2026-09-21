@@ -43,9 +43,12 @@ export default function TradeActionsPanel({ trade }: TradeActionsPanelProps) {
         t.uiState !== "finalized" &&
         t.uiState !== "failed",
     );
+    // The label belongs to the newest write on this trade, so sort by
+    // submission time descending rather than trusting array order.
+    const newest = [...active].sort((a, b) => b.submittedAt - a.submittedAt)[0];
     return {
       hasActiveTx: active.length > 0,
-      activeMethod: active.length > 0 ? active[0].method : null,
+      activeMethod: newest ? newest.method : null,
     };
   }, [allTxs, context]);
 

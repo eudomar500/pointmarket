@@ -11,6 +11,9 @@ import { getAddresses, DEFAULT_NETWORK } from "@/lib/genlayer/contracts";
 import { NETWORKS } from "@/config/networks";
 import { getMarketplaceTimings } from "@/lib/genlayer/timings";
 import { formatGenBalance } from "@/lib/wallet/format";
+import type { TxMethod } from "@/lib/tx/types";
+
+const METHOD: TxMethod = "force_refund_stuck_dispute";
 
 interface ForceRefundStuckDisputeButtonProps {
   tradeId: number;
@@ -96,8 +99,8 @@ export default function ForceRefundStuckDisputeButton({
   };
 
   const buttonLabel = (() => {
-    if (disabled && activeMethod) {
-      return `Processing ${activeMethod.replace(/_/g, " ")}...`;
+    if (disabled && activeMethod === METHOD) {
+      return "Processing...";
     }
     if (!isReady) {
       return `Admin force refund in ${formatRemaining(remainingSeconds)}`;
