@@ -13,6 +13,7 @@ export function formatGenBalance(wei: bigint | string, decimals = 3): string {
 
   const [whole, fraction] = formatted.split(".");
   if (!fraction) return `${whole} GEN`;
+  if (decimals === 0) return `${whole} GEN`;
 
   const truncated = fraction.slice(0, decimals);
 
