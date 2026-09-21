@@ -1,0 +1,18 @@
+[package]
+name = "tiny-wasm-probe"
+version = "1.0.0"
+edition = "2021"
+description = "Minimal raw WASM contract, to test whether GenLayer executes WASM contracts"
+
+[[bin]]
+name = "tiny_probe"
+path = "src/main.rs"
+
+[dependencies]
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

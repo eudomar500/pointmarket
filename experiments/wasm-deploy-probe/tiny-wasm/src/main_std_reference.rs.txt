@@ -1,0 +1,214 @@
+//! Minimal raw WASM contract for GenLayer.
+//!
+//! Purpose: answer whether Testnet Bradbury loads and executes a raw WASM
+//! contract at all. It does the least a contract can do and still be
+//! observable: it writes a marker line to stdout and then returns a value
+//! through the host.
+//!
+//! Host ABI, mirrored from tls-twitter-bounty/tls-verifier-wasm/src/main.rs:
+//! the module imports `genlayer_sdk::gl_call` with the wasm type
+//! `(i32, i32, i32) -> i32`, which is the same type the pinned CPython runner
+//! imports, and it is a wasm32-wasip1 command module driven through `_start`.
+//! The resulting import set is identical to the verifier's.
+//!
+//! Unlike the verifier, this RETURNS instead of exiting. The verifier's init
+//! path prints and calls `exit(0)` without ever returning a value. The
+//! reference Python runner does return on init: `_genlayer_runner.py`
+//! `_handle_main` ends in `_give_result(...)`, which calls
+//! `gl_call.contract_return(res)`, emitting `{"Return": <value>}` even when the
+//! constructor produced `None`. So returning from a deployment is what the
+//! runtime expects, and a raw WASM module can do it, because the message is
+//! just calldata.
+//!
+//! No heap is used: everything is fixed buffers, which keeps the module small.
+
+// Same import module, name and signature as the tls verifier uses.
+#[link(wasm_import_module = "genlayer_sdk")]
+extern "C" {
+    fn gl_call(request: *const u8, request_len: u32, result_fd: *mut u32) -> u32;
+}
+
+// WASI preview1 is called directly rather than through std::io. std's stdio
+// carries line buffering, lazy handle initialisation and formatting machinery
+// that this contract does not need, and dropping it is most of the size win.
+#[repr(C)]
+struct Ciovec {
+    buf: *const u8,
+    buf_len: u32,
+}
+
+#[link(wasm_import_module = "wasi_snapshot_preview1")]
+extern "C" {
+    fn fd_read(fd: u32, iovs: *const Ciovec, iovs_len: u32, nread: *mut u32) -> u32;
+    fn fd_write(fd: u32, iovs: *const Ciovec, iovs_len: u32, nwritten: *mut u32) -> u32;
+    fn proc_exit(code: u32) -> !;
+}
+
+const FD_STDIN: u32 = 0;
+const FD_STDOUT: u32 = 1;
+const FD_STDERR: u32 = 2;
+
+fn write_all(fd: u32, mut bytes: &[u8]) {
+    while !bytes.is_empty() {
+        let iov = Ciovec { buf: bytes.as_ptr(), buf_len: bytes.len() as u32 };
+        let mut written: u32 = 0;
+        let rc = unsafe { fd_write(fd, &iov, 1, &mut written) };
+        if rc != 0 || written == 0 {
+            return;
+        }
+        bytes = &bytes[written as usize..];
+    }
+}
+
+// Calldata wire format, from the genvm py-std calldata encoder and the
+// verifier's calldata/bin.rs. A header is ULEB128 of `(payload << 3) | type`.
+const BITS_IN_TYPE: u32 = 3;
+const TYPE_SPECIAL: u8 = 0;
+const TYPE_STR: u8 = 4;
+const TYPE_MAP: u8 = 6;
+const SPECIAL_FALSE: u8 = (1 << BITS_IN_TYPE) | TYPE_SPECIAL;
+const SPECIAL_TRUE: u8 = (2 << BITS_IN_TYPE) | TYPE_SPECIAL;
+
+const MARKER: &[u8] = b"{\"probe\":\"tiny\",\"version\":\"1\"}\n";
+
+/// The ExtendedMessage the host writes to stdin. Static, so it costs no file
+/// bytes: wasm only stores non-zero data segments.
+static mut INPUT: [u8; 65536] = [0; 65536];
+
+struct Buf {
+    data: [u8; 192],
+    len: usize,
+}
+
+impl Buf {
+    const fn new() -> Self {
+        Buf { data: [0; 192], len: 0 }
+    }
+
+    fn push(&mut self, byte: u8) {
+        if self.len < self.data.len() {
+            self.data[self.len] = byte;
+            self.len += 1;
+        }
+    }
+
+    fn extend(&mut self, bytes: &[u8]) {
+        for &b in bytes {
+            self.push(b);
+        }
+    }
+
+    fn uleb(&mut self, mut value: u64) {
+        if value == 0 {
+            self.push(0);
+            return;
+        }
+        while value > 0 {
+            let mut byte = (value & 0x7f) as u8;
+            value >>= 7;
+            if value > 0 {
+                byte |= 0x80;
+            }
+            self.push(byte);
+        }
+    }
+
+    fn header(&mut self, payload: u64, typ: u8) {
+        self.uleb((payload << BITS_IN_TYPE) | typ as u64);
+    }
+
+    fn string(&mut self, value: &str) {
+        self.header(value.len() as u64, TYPE_STR);
+        self.extend(value.as_bytes());
+    }
+
+    /// Map keys are raw: ULEB128(len) then the bytes, with no type tag. Keys
+    /// must be in sorted order, matching the reference encoder.
+    fn key(&mut self, key: &str) {
+        self.uleb(key.len() as u64);
+        self.extend(key.as_bytes());
+    }
+}
+
+/// Look for the `is_init` field in the ExtendedMessage.
+///
+/// This is a scan, not a parse. The message is a map whose keys are raw
+/// length-prefixed strings, so the key appears literally as 0x07 "is_init"
+/// followed by its value byte. A full parser would cost more code than the rest
+/// of this contract and buys nothing: the probe behaves identically on both
+/// paths and only reports what it saw.
+fn find_is_init(input: &[u8]) -> Option<bool> {
+    let needle = b"\x07is_init";
+    let at = input.windows(needle.len()).position(|w| w == needle)?;
+    match input.get(at + needle.len()) {
+        Some(&SPECIAL_TRUE) => Some(true),
+        Some(&SPECIAL_FALSE) => Some(false),
+        _ => None,
+    }
+}
+
+fn read_stdin(into: &mut [u8]) -> usize {
+    let mut total = 0;
+    while total < into.len() {
+        let iov = Ciovec {
+            buf: into[total..].as_ptr(),
+            buf_len: (into.len() - total) as u32,
+        };
+        let mut got: u32 = 0;
+        let rc = unsafe { fd_read(FD_STDIN, &iov, 1, &mut got) };
+        if rc != 0 || got == 0 {
+            break;
+        }
+        total += got as usize;
+    }
+    total
+}
+
+fn main() {
+    // Safety: single-threaded contract entry point, one exclusive borrow.
+    let input = unsafe { &mut *core::ptr::addr_of_mut!(INPUT) };
+    let read = read_stdin(input);
+    let is_init = find_is_init(&input[..read]);
+
+    // Marker line on stdout. gen_dbg_traceTransaction surfaces this verbatim.
+    write_all(FD_STDOUT, MARKER);
+
+    // {"Return": {"is_init": <bool|"unknown">, "probe": "tiny", "version": "1"}}
+    let mut msg = Buf::new();
+    msg.header(1, TYPE_MAP);
+    msg.key("Return");
+
+    msg.header(3, TYPE_MAP);
+    msg.key("is_init");
+    match is_init {
+        Some(true) => msg.push(SPECIAL_TRUE),
+        Some(false) => msg.push(SPECIAL_FALSE),
+        None => msg.string("unknown"),
+    }
+    msg.key("probe");
+    msg.string("tiny");
+    msg.key("version");
+    msg.string("1");
+
+    let mut result_fd: u32 = 0;
+    let code = unsafe { gl_call(msg.data.as_ptr(), msg.len as u32, &mut result_fd) };
+
+    // A successful Return does not come back: the host tears the VM down. If
+    // control reaches here the host refused the message, so say so on stderr
+    // and fail loudly rather than exiting 0 and looking like a success.
+    write_all(FD_STDERR, b"gl_call returned unexpectedly, code=");
+    let mut digits = [0u8; 12];
+    let mut n = code;
+    let mut i = digits.len();
+    loop {
+        i -= 1;
+        digits[i] = b'0' + (n % 10) as u8;
+        n /= 10;
+        if n == 0 {
+            break;
+        }
+    }
+    write_all(FD_STDERR, &digits[i..]);
+    write_all(FD_STDERR, b"\n");
+    unsafe { proc_exit(1) }
+}
