@@ -166,8 +166,8 @@ class MarketplaceIface:
 | Method | Notes |
 |---|---|
 | `set_marketplace_address(addr: str)` | **One-shot.** Reverts if `marketplace_address != 0x00..00` or if `next_market_id != 0`. |
-| `create_objective_market(question, metric_type, threshold, window_start, window_end, betting_close_at, settlement_at)` | Returns `market_id`. Validates `metric_type ∈ [0,99]` and is in known set. |
-| `create_subjective_market(question, metric_type, target_trade_id, betting_close_at, settlement_at)` | Returns `market_id`. Validates `metric_type ∈ [100,199]` and is in known set. Calls `marketplace.view().get_trade_summary(target_trade_id)` to verify the trade exists. |
+| `create_objective_market(question, metric_type, threshold, window_start, window_end, betting_close_at, settlement_at)` | Returns `market_id`. Validates `metric_type in [0,99]` and is in known set. |
+| `create_subjective_market(question, metric_type, target_trade_id, betting_close_at, settlement_at)` | Returns `market_id`. Validates `metric_type in [100,199]` and is in known set. Calls `marketplace.view().get_trade_summary(target_trade_id)` to verify the trade exists. |
 | `pause()` / `unpause()` | Halts `place_bet` and market creation. Reads, resolves, claims, and refunds remain available. |
 | `transfer_admin(new_admin)` | One-step admin transfer. |
 | `upgrade(new_code: bytes)` | Replaces the contract bytecode. Storage preserved. |

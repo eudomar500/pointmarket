@@ -14,7 +14,7 @@ vars:
 
 tasks:
 
-  # ─── Setup ────────────────────────────────────────────────────────────
+  # --- Setup ------------------------------------------------------------
 
   default:
     desc: List available tasks
@@ -52,7 +52,7 @@ tasks:
       - sh: command -v node
         msg: "Node.js is required."
 
-  # ─── GenLayer Studio (local network) ──────────────────────────────────
+  # --- GenLayer Studio (local network) ----------------------------------
 
   studio:up:
     desc: Start local GenLayer Studio (localnet)
@@ -71,7 +71,7 @@ tasks:
       - rm -rf .genlayer studio-data
       - genlayer up
 
-  # ─── Linting ──────────────────────────────────────────────────────────
+  # --- Linting ----------------------------------------------------------
 
   lint:
     desc: Run GenVM linter on all contracts
@@ -83,7 +83,7 @@ tasks:
     cmds:
       - for f in {{.CONTRACTS_DIR}}/*.py; do genlayer lint "$f" --fix; done
 
-  # ─── Testing ──────────────────────────────────────────────────────────
+  # --- Testing ----------------------------------------------------------
 
   test:
     desc: Run all tests (direct mode, fast)
@@ -115,7 +115,7 @@ tasks:
     cmds:
       - "{{.PYTHON}} -m pytest {{.TESTS_DIR}} -v -k prediction"
 
-  # ─── Deployment ───────────────────────────────────────────────────────
+  # --- Deployment -------------------------------------------------------
 
   deploy:local:
     desc: Deploy factories to local Studio
@@ -130,7 +130,7 @@ tasks:
       - sh: test -n "$GENLAYER_PRIVATE_KEY"
         msg: "GENLAYER_PRIVATE_KEY env var required for testnet deploy"
 
-  # ─── Demo scripts ─────────────────────────────────────────────────────
+  # --- Demo scripts -----------------------------------------------------
 
   demo:happy-path:
     desc: End-to-end demo of a successful trade (no dispute)
@@ -147,7 +147,7 @@ tasks:
     cmds:
       - "{{.PYTHON}} {{.SCRIPTS_DIR}}/demo_prediction.py"
 
-  # ─── Frontend ─────────────────────────────────────────────────────────
+  # --- Frontend ---------------------------------------------------------
 
   frontend:dev:
     desc: Run frontend dev server
@@ -161,7 +161,7 @@ tasks:
     cmds:
       - pnpm build
 
-  # ─── CI / Quality ─────────────────────────────────────────────────────
+  # --- CI / Quality -----------------------------------------------------
 
   ci:
     desc: Run full CI suite (lint + tests)
@@ -175,7 +175,7 @@ tasks:
     cmds:
       - "{{.PYTHON}} -m black {{.CONTRACTS_DIR}} {{.TESTS_DIR}} {{.SCRIPTS_DIR}}"
 
-  # ─── Cleanup ──────────────────────────────────────────────────────────
+  # --- Cleanup ----------------------------------------------------------
 
   clean:
     desc: Remove build artifacts and caches

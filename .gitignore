@@ -52,7 +52,7 @@ studio-data/
 contracts/build/
 contracts/.gl_cache/
 
-# Local deployment receipts (contain addresses + tx hashes — keep one canonical record in docs/ instead)
+# Local deployment receipts (contain addresses + tx hashes - keep one canonical record in docs/ instead)
 deployments/local/
 deployments/*.local.json
 
@@ -102,16 +102,13 @@ temp/
 !frontend/lib/
 !frontend/lib/**
 
-# AI assistant artifacts (Antigravity, Claude, etc) -- never commit
+# local tool caches
 AGENTS.md
 implementation_plan.md
-.antigravity/
 
-# --- AI assistant artifacts (never commit) ---
+# --- local tool caches ---
 **/AGENTS.md
 **/implementation_plan.md
-.antigravity/
-**/.antigravity/
 
 # --- Whitelist frontend/lib (overrides Python lib/) ---
 !frontend/lib/

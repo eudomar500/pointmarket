@@ -197,7 +197,7 @@ Note: reputation is incremented at the *market* level, not the bet level. A user
 
 **Threat:** a sufficiently large pool overflows `u256` arithmetic in the payout calculation.
 
-**Mitigation:** `u256` is 256-bit unsigned, maximum ~1.16 × 10^77. A pool of 10^30 wei (the `MAX_PRICE` of the Marketplace) is many orders of magnitude below the overflow threshold. `MAX_BETTING_WINDOW_SECONDS = 14 days` bounds the time during which bets can accumulate.
+**Mitigation:** `u256` is 256-bit unsigned, maximum ~1.16 x 10^77. A pool of 10^30 wei (the `MAX_PRICE` of the Marketplace) is many orders of magnitude below the overflow threshold. `MAX_BETTING_WINDOW_SECONDS = 14 days` bounds the time during which bets can accumulate.
 
 **File:** `contracts/PredictionMarket.py`, `place_bet` and `claim_winnings`.
 

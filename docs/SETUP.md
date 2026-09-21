@@ -143,6 +143,6 @@ git push
 
 **Studio won't start** -> Make sure Docker is running. Try `task studio:reset` to wipe state.
 
-**Tests fail with `ModuleNotFoundError: genlayer`** -> Run `task setup:python`. If that fails, check your Python version is ≥3.11 with `python3 --version`.
+**Tests fail with `ModuleNotFoundError: genlayer`** -> Run `task setup:python`. If that fails, check your Python version is >=3.11 with `python3 --version`.
 
 **Integration tests timeout** -> LLM inference is slow. Increase test timeout in `pytest.ini` or run individual tests with `pytest tests/integration/test_x.py -v --timeout 300`.

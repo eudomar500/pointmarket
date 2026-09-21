@@ -14,45 +14,45 @@ This is the natural extension of the v1 escrow primitive from physical goods to 
 
 **The gap competitors have not closed.** [LocalCryptos](https://localcryptos.com) (shut down), [Bisq](https://bisq.network), [HodlHodl](https://hodlhodl.com), and a handful of others have tried decentralized fiat escrow. All hit the same wall: dispute resolution requires a human arbiter (centralized) or a complex slow-moving DAO (Kleros-style, expensive and slow). GenLayer eliminates this wall.
 
-**LATAM-specific edge.** Fiat escrow tools built for Venezuelan/Argentinian/Colombian rails (bank transfer screenshots in Spanish, Pago Móvil receipts, Mercado Pago confirmations) do not exist as decentralized primitives. A GenLayer-native solution that can read and adjudicate these payment artifacts is regional white space.
+**LATAM-specific edge.** Fiat escrow tools built for Venezuelan/Argentinian/Colombian rails (bank transfer screenshots in Spanish, Pago Movil receipts, Mercado Pago confirmations) do not exist as decentralized primitives. A GenLayer-native solution that can read and adjudicate these payment artifacts is regional white space.
 
 ## Architecture sketch
 
 The v1 `Trade` contract assumes physical goods with a tracking number. Fiat escrow needs a different proof artifact: a **payment receipt** that proves money moved from buyer to seller's bank/wallet outside the chain.
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                                                             │
-│   FiatTrade lifecycle                                       │
-│                                                             │
-│   ┌─────────────────────────────────────────────────────┐   │
-│   │  Seller locks crypto in escrow                      │   │
-│   └──────────────────────┬──────────────────────────────┘   │
-│                          ▼                                  │
-│   ┌─────────────────────────────────────────────────────┐   │
-│   │  Buyer sends fiat off-chain (bank, Pago Móvil, etc) │   │
-│   └──────────────────────┬──────────────────────────────┘   │
-│                          ▼                                  │
-│   ┌─────────────────────────────────────────────────────┐   │
-│   │  Buyer uploads payment receipt as evidence          │   │
-│   │   (image or PDF, base64-encoded into contract state)│   │
-│   └──────────────────────┬──────────────────────────────┘   │
-│                          ▼                                  │
-│   ┌─────────────────────────────────────────────────────┐   │
-│   │  Seller confirms receipt of fiat                    │   │
-│   │  → crypto releases to buyer                         │   │
-│   └─────────────────────────────────────────────────────┘   │
-│                                                             │
-│   On dispute:                                               │
-│   ┌─────────────────────────────────────────────────────┐   │
-│   │  LLM with vision capability reads the receipt image:│   │
-│   │  - Is the amount correct?                           │   │
-│   │  - Does the recipient match seller's claimed acct?  │   │
-│   │  - Is the timestamp consistent with the trade?      │   │
-│   │  - Does the receipt look forged?                    │   │
-│   └─────────────────────────────────────────────────────┘   │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
++---------------------------------------------------------------+
+|                                                               |
+|   FiatTrade lifecycle                                         |
+|                                                               |
+|   +-------------------------------------------------------+   |
+|   |  Seller locks crypto in escrow                        |   |
+|   +---------------------------+---------------------------+   |
+|                               v                               |
+|   +-------------------------------------------------------+   |
+|   |  Buyer sends fiat off-chain (bank, Pago Movil, etc)   |   |
+|   +---------------------------+---------------------------+   |
+|                               v                               |
+|   +-------------------------------------------------------+   |
+|   |  Buyer uploads payment receipt as evidence            |   |
+|   |   (image or PDF, base64-encoded into contract state)  |   |
+|   +---------------------------+---------------------------+   |
+|                               v                               |
+|   +-------------------------------------------------------+   |
+|   |  Seller confirms receipt of fiat                      |   |
+|   |  -> crypto releases to buyer                          |   |
+|   +-------------------------------------------------------+   |
+|                                                               |
+|   On dispute:                                                 |
+|   +-------------------------------------------------------+   |
+|   |  LLM with vision capability reads the receipt image:  |   |
+|   |  - Is the amount correct?                             |   |
+|   |  - Does the recipient match seller's claimed acct?    |   |
+|   |  - Is the timestamp consistent with the trade?        |   |
+|   |  - Does the receipt look forged?                      |   |
+|   +-------------------------------------------------------+   |
+|                                                               |
++---------------------------------------------------------------+
 ```
 
 ## Technical building blocks (already in GenLayer)
@@ -96,9 +96,9 @@ Day-one liquidity is a chicken-and-egg problem. Solutions:
 
 ### 4. Payment method diversity
 
-Bank transfer in Argentina ≠ Pago Móvil in Venezuela ≠ Pix in Brazil ≠ Mercado Pago anywhere. Each has a different receipt format. The LLM needs to handle each.
+Bank transfer in Argentina != Pago Movil in Venezuela != Pix in Brazil != Mercado Pago anywhere. Each has a different receipt format. The LLM needs to handle each.
 
-**Approach:** Start with one rail (Pago Móvil in Venezuela), validate the model's accuracy, expand rail-by-rail. Each rail is a small per-prompt module loaded based on the trade's declared payment method.
+**Approach:** Start with one rail (Pago Movil in Venezuela), validate the model's accuracy, expand rail-by-rail. Each rail is a small per-prompt module loaded based on the trade's declared payment method.
 
 ## What v2 should do first
 
@@ -108,7 +108,7 @@ The bridge between v1 (physical goods) and v3 (fiat escrow) is **digital goods**
 
 v1 stands on its own technically, but **v3 is the long-term thesis**. When pitching v1 to GenLayer Foundation or hackathon judges, the fiat escrow roadmap is the answer to "what's the long game?" -- and it is a credible answer because:
 
-1. The market is real and large (LATAM P2P fiat ≥ $30B/year).
+1. The market is real and large (LATAM P2P fiat >= $30B/year).
 2. The trust gap is real and centrally arbitrated today.
 3. GenLayer's vision LLM + web access primitives are uniquely positioned to close it.
 4. The v1 dispute primitive proves the core mechanic before the higher-stakes fiat version.
