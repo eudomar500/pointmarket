@@ -10,11 +10,22 @@ export function truncateAddress(address: string, prefixLength = 6, suffixLength 
 export function formatGenBalance(wei: bigint | string, decimals = 3): string {
   const valueBigInt = typeof wei === "string" ? BigInt(wei) : wei;
   const formatted = formatUnits(valueBigInt, 18);
-  
+
   const [whole, fraction] = formatted.split(".");
   if (!fraction) return `${whole} GEN`;
-  
-  return `${whole}.${fraction.slice(0, decimals).padEnd(decimals, "0")} GEN`;
+
+  const truncated = fraction.slice(0, decimals);
+
+  // Small non-zero amounts (dispute bonds are 5% of the price) would truncate to
+  // "0.000"; show them down to the first significant digit plus one instead.
+  const isZeroWhole = whole === "0" || whole === "-0";
+  if (valueBigInt !== 0n && isZeroWhole && truncated.length > 0 && !/[1-9]/.test(truncated)) {
+    const firstSignificant = fraction.search(/[1-9]/);
+    const extended = fraction.slice(0, firstSignificant + 2).replace(/0+$/, "");
+    return `${whole}.${extended} GEN`;
+  }
+
+  return `${whole}.${truncated.padEnd(decimals, "0")} GEN`;
 }
 
 export function isValidAddress(value: string): boolean {
