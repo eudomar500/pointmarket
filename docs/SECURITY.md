@@ -20,7 +20,7 @@ Out of scope for this document:
 - Frontend / RPC node security (we don't run one).
 - Hardware-level attacks on validator nodes.
 
-## Marketplace threats (T1–T8)
+## Marketplace threats (T1–T9)
 
 ### T1: Reentrancy in payout paths
 
@@ -105,6 +105,33 @@ The escalation is one-way: an admin can rescue at 30 days even if the public pat
 The economic model: a malicious party who consistently loses disputes accumulates losses faster than they could from any single exploit, because the 5% bond is forfeited every time. Honest parties recover their bond plus the other party's bond.
 
 **File:** `contracts/Marketplace.py`, `open_dispute`, `respond_to_dispute`, payout helpers.
+
+### T9: Buyer wins dispute and retains the physical good
+
+**Threat:** a malicious buyer accepts a listing, receives the shipped item, and then opens a dispute claiming the item arrived damaged or did not match the description. If the LLM rules in favor of the buyer, the contract refunds `price + buyer_bond + seller_bond` to the buyer through `_payout_dispute_buyer_wins`. The seller has already shipped and lost custody of the item; the contract has no on-chain proof of return, so the buyer ends up with both the money and the physical good.
+
+**Scenario:**
+- Item shipped via the carrier and tracking entered through `mark_shipped`.
+- Buyer files `open_dispute` with evidence designed to be persuasive to an LLM arbitrator (claims of damage on arrival, contradictions with the seller description).
+- Seller responds via `respond_to_dispute` with their counter-evidence.
+- LLM consensus returns `verdict = BUYER`. Payout fires.
+- Buyer keeps the item and the refund. Seller loses item, price, and 5% bond.
+
+**Mitigation in v903 (current):**
+
+- None at the contract level. The dispute resolution path is text-only; the contract has no concept of a return shipment, no method to confirm physical receipt, and no escrow on the good itself.
+- The 5% bond posted by the buyer in `open_dispute` is a partial economic disincentive against frivolous claims (the bond is forfeited if the LLM rules for the seller). The bond is recovered when the buyer wins, so a buyer who consistently wins disputes pays nothing for this attack.
+- The LLM prompt explicitly asks the arbitrator to consider whether shipping evidence supports either party and whether the item likely matched the description, but there is no objective ground truth available to the LLM.
+
+**Residual risk:** high in the MVP. This is a structural property of any on-chain P2P escrow that does not require return shipping, including Kleros disputes over physical goods and similar P2P arbitration systems. The mitigation requires off-chain proof that the contract cannot independently verify.
+
+**Roadmap:**
+
+- v1.5: introduce `STATE_RETURN_PENDING` and `confirm_return_received` from the seller. When the LLM rules for the buyer, the contract enters return-pending state and the buyer is required to submit return tracking via a new `mark_returned(tracking, carrier)` call within a window. The refund is released only after the seller confirms receipt, or after a public force-refund window expires with no seller response.
+- v1.5 alternative: partial refund cap. When the LLM rules for the buyer but the seller's shipping evidence is strong (high LLM confidence in the seller's chain of custody, low confidence in the buyer's damage claim), the contract releases a partial refund (50% of price) instead of the full amount, even though the verdict is BUYER. This shifts the loss distribution without requiring physical return logistics.
+- v2: reputation accumulation per pseudonym. Repeated buyer-wins dispute outcomes against the same buyer across distinct sellers raise a flag that the LLM is shown in subsequent disputes the buyer initiates. The reputation is on-chain and queryable, calculated on demand from `disputed_count` and `dispute_initiator` history.
+
+**File:** `contracts/Marketplace.py`, `_payout_dispute_buyer_wins`. No code change is in scope for this threat as of v903; documented here so that downstream integrators and reviewers are aware of the limitation.
 
 ## PredictionMarket threats (T-PM-1 to T-PM-24)
 
