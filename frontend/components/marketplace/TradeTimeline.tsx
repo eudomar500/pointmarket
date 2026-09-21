@@ -84,6 +84,11 @@ function buildSteps(trade: TradeTimelineProps["trade"]) {
 
   const skippedIcon = cancelIcon;
   
+  const isCompleted = trade.state === TradeState.COMPLETED;
+  const isStuckDispute = isRefunded && trade.disputed;
+  const isUnshippedRefund = isRefunded && !trade.disputed;
+  const isDisputedPayout = isCompleted && trade.disputed;
+
   const steps = [
     {
       title: "Listing created",
@@ -101,23 +106,14 @@ function buildSteps(trade: TradeTimelineProps["trade"]) {
     },
     {
       title: "Shipped",
-      detail: reached(TradeState.SHIPPED) 
+      // A stuck dispute is only reachable from DISPUTED, so the item was shipped.
+      detail: reached(TradeState.SHIPPED) || isStuckDispute
         ? `Tracking provided by seller` 
-        : (isRefunded ? "Not shipped within window" : undefined),
+        : (isUnshippedRefund ? "Not shipped within window" : undefined),
       reached: reached(TradeState.SHIPPED) || isRefunded,
-      icon: reached(TradeState.SHIPPED) 
+      icon: reached(TradeState.SHIPPED) || isStuckDispute
         ? filledIcon 
-        : (isRefunded ? skippedIcon : emptyIcon),
-    },
-    {
-      title: "Delivered & paid out",
-      detail: trade.state === TradeState.COMPLETED 
-        ? "Funds released to seller" 
-        : (isRefunded ? "Refund issued instead" : undefined),
-      reached: trade.state === TradeState.COMPLETED || isRefunded,
-      icon: trade.state === TradeState.COMPLETED 
-        ? filledIcon 
-        : (isRefunded ? skippedIcon : emptyIcon),
+        : (isUnshippedRefund ? skippedIcon : emptyIcon),
     },
   ];
   
@@ -130,9 +126,6 @@ function buildSteps(trade: TradeTimelineProps["trade"]) {
     initiatorSet && trade.dispute_initiator!.toLowerCase() === trade.buyer.toLowerCase();
   const initiatorLabel = initiatorIsBuyer ? "buyer" : "seller";
   const isDisputeActive = trade.state === TradeState.DISPUTED;
-  const isDisputeResolved =
-    trade.disputed &&
-    (trade.state === TradeState.COMPLETED || trade.state === TradeState.REFUNDED);
 
   if (trade.disputed || isDisputeActive) {
     const detail = initiatorSet
@@ -146,22 +139,47 @@ function buildSteps(trade: TradeTimelineProps["trade"]) {
     });
   }
 
-  if (isDisputeResolved) {
-    const winnerText = trade.llm_verdict_buyer_wins ? "buyer" : "seller";
+  // How the dispute was settled. It comes before the payout step so the cause of
+  // the outcome is never shown after the outcome itself.
+  if (isDisputedPayout) {
     const resolvedByDefault = Boolean(trade.resolved_by_default);
-    const title = resolvedByDefault
-      ? `Dispute won by default (${winnerText} won)`
-      : `Dispute resolved by LLM (${winnerText} won)`;
-    const detail = resolvedByDefault
-      ? "Other party did not respond within the window"
-      : trade.llm_verdict_reasoning || undefined;
     steps.push({
-      title,
-      detail,
+      title: resolvedByDefault ? "Dispute resolved by default" : "Dispute resolved by LLM",
+      detail: resolvedByDefault
+        ? "Other party did not respond within the window"
+        : trade.llm_verdict_reasoning || undefined,
       reached: true,
       icon: filledIcon,
     });
   }
+
+  // Terminal payout step. It follows the dispute steps when a dispute happened,
+  // so the outcome is never shown before the dispute that produced it.
+  let outcomeTitle = "Delivered & paid out";
+  let outcomeDetail: string | undefined = undefined;
+  let outcomeIcon = emptyIcon;
+  if (isDisputedPayout) {
+    outcomeTitle = "Paid out";
+    outcomeDetail = trade.llm_verdict_buyer_wins
+      ? "Funds returned to buyer"
+      : "Funds released to seller";
+    outcomeIcon = filledIcon;
+  } else if (isCompleted) {
+    outcomeDetail = "Funds released to seller";
+    outcomeIcon = filledIcon;
+  } else if (isStuckDispute) {
+    outcomeTitle = "Dispute closed without verdict";
+    outcomeDetail = "Funds split between buyer and seller";
+    outcomeIcon = filledIcon;
+  } else if (isUnshippedRefund) {
+    outcomeIcon = skippedIcon;
+  }
+  steps.push({
+    title: outcomeTitle,
+    detail: outcomeDetail,
+    reached: isCompleted || isStuckDispute,
+    icon: outcomeIcon,
+  });
   
   if (isCancelled) {
     return [
@@ -180,8 +198,8 @@ function buildSteps(trade: TradeTimelineProps["trade"]) {
     ];
   }
 
-  if (trade.state === TradeState.REFUNDED && !trade.disputed) {
-    // If it was refunded without dispute (maybe some manual contract refund or auto-refund)
+  if (isUnshippedRefund) {
+    // Buyer claimed a refund because the seller never shipped.
     steps.push({
       title: "Refunded",
       detail: "Funds returned to buyer",
