@@ -2,18 +2,23 @@
 
 All notable changes to this project are documented in this file.
 
-The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This repository hosts two contracts versioned independently:
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This repository hosts four contracts versioned independently. The production pair:
 
 - `contracts/Marketplace.py`: current version `1.4.7`
 - `contracts/PredictionMarket.py`: current version `1.1.5`
+
+And the demo pair, identical in logic but with reduced timing constants, which is the deployment the frontend currently targets (`DEFAULT_NETWORK = "testnetBradburyDemo"`):
+
+- `contracts/MarketplaceDemo.py`: current version `903`
+- `contracts/PredictionMarketDemo.py`: current version `902`
 
 Each version entry lists the contracts whose source changed in that entry. Frontend changes are tracked under dated phase entries below. Documentation, scripts, and tests are tracked separately under each version.
 
 ## [Unreleased]
 
-Phase F (write integration on Bradbury) in progress. The Marketplace happy path is covered end-to-end with five writes integrated and validated in vivo: `create_listing`, `cancel_listing`, `accept_listing`, `mark_shipped`, `confirm_delivery`.
+Phase F (write integration on Bradbury) in progress. All 12 Marketplace writes are integrated: the happy path (`create_listing`, `cancel_listing`, `accept_listing`, `mark_shipped`, `confirm_delivery`) plus the disputes and claims block (`claim_after_window`, `claim_unshipped_refund`, `open_dispute`, `respond_to_dispute`, `claim_dispute_default`, `force_refund_stuck_dispute`, `claim_stuck_dispute_refund`).
 
-20 writes remain pending in the frontend: 7 disputes and claims, 6 PredictionMarket, 6 admin. Next milestone: extend the `TradeActionsPanel` pattern to cover the disputes block. Validation of disputes is blocked by production timing constants on the live v1.4.7 contract; a demo deployment with reduced timing constants is planned.
+That is 12 of the 24 writes in `frontend/lib/genlayer/writes.ts`. 12 remain pending: 6 PredictionMarket and 6 admin. Next milestone: the PredictionMarket writes in the frontend.
 
 ## [Demo contracts v903] (2026-05-28)
 
@@ -93,7 +98,7 @@ Expands `get_listing_details` view to include tracking and dispute evidence fiel
 
 ### Status
 
-Deployed: pending. Frontend address update: pending in the same PR.
+No deployment of `MarketplaceDemo v902` is recorded. It was superseded two days later by `MarketplaceDemo v903`, which carries this same view expansion plus the calibrated timing windows; see the "Demo contracts v903" entry above for the deployed addresses and the frontend address update that shipped with it.
 
 ## [Demo contracts] (2026-05-26)
 
@@ -150,6 +155,8 @@ Handshake to enable PredictionMarketDemo as authorized fee sender on Marketplace
 | 3. `PM.accept_marketplace_fee_authorization` | pending | -- |
 
 Step 3 pending until step 2 finalizes. Frontend integration to support a network selector between production v1.4.7 and demo v900/v901 tracked as the next milestone.
+
+Superseded: the v900 / v901 pair was replaced by the v903 / v902 pair (see "Demo contracts v903"), step 3 above was never completed against it, and the network selector was not built - `DEFAULT_NETWORK` in `frontend/lib/genlayer/contracts.ts` is hardcoded to `testnetBradburyDemo`.
 
 ## [Frontend Phase F continued] (2026-05-25)
 

@@ -1,6 +1,6 @@
 # Security
 
-Threat model for `genlayer-p2p-arena`. Two contracts (`Marketplace.py v1.4.4`, `PredictionMarket.py v1.0.1`) plus cross-contract threats. Threats are documented as facts: each row pairs a concrete attack with the concrete mitigation in the code.
+Threat model for `genlayer-p2p-arena`. Two contracts (`Marketplace.py v1.4.7`, `PredictionMarket.py v1.1.5`) plus cross-contract threats. Threats are documented as facts: each row pairs a concrete attack with the concrete mitigation in the code.
 
 **Status:** MVP. Not audited. Not for production funds.
 
@@ -8,7 +8,7 @@ Threat model for `genlayer-p2p-arena`. Two contracts (`Marketplace.py v1.4.4`, `
 
 Threats are organized in three families:
 
-1. **T1–T8**: Marketplace-side threats: dispute economics, state machine integrity, LLM consensus, fund settlement.
+1. **T1-T9**: Marketplace-side threats: dispute economics, state machine integrity, LLM consensus, fund settlement.
 2. **T-PM-1 to T-PM-24**: PredictionMarket-side threats: bet pool, market resolution, payout math, fee forwarding.
 3. **T-CX-1 to T-CX-5**: Cross-contract threats: interactions between the two contracts that depend on both being correct simultaneously.
 
@@ -20,7 +20,7 @@ Out of scope for this document:
 - Frontend / RPC node security (we don't run one).
 - Hardware-level attacks on validator nodes.
 
-## Marketplace threats (T1–T9)
+## Marketplace threats (T1-T9)
 
 ### T1: Reentrancy in payout paths
 
