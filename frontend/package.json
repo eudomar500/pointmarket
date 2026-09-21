@@ -2,7 +2,7 @@
   "name": "pointmarket-frontend",
   "version": "0.1.0",
   "private": true,
-  "description": "PointMarket dApp frontend. Next.js + GenLayerJS.",
+  "description": "Pointmarket dApp frontend. Next.js + GenLayerJS.",
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",

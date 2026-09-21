@@ -1,6 +1,6 @@
 # Transaction Lifecycle and TX Tracking System
 
-This document describes the transaction tracking system used by the PointMarket
+This document describes the transaction tracking system used by the Pointmarket
 frontend on Bradbury and the mapping between GenLayer protocol states and the
 UI states that the user sees.
 
@@ -275,8 +275,8 @@ Avoid hardcoding the explorer URL anywhere else and avoid the
 
 ## Why localStorage is acceptable here
 
-GenLayer's design ethos is trust-everything-on-chain. PointMarket extends
-that ethos with a separate `PointMarketLeaderboard` contract rather than an
+GenLayer's design ethos is trust-everything-on-chain. Pointmarket extends
+that ethos with a separate `PointmarketLeaderboard` contract rather than an
 off-chain indexer. Storing transaction metadata in `localStorage` may at
 first read like a contradiction, so the boundary deserves to be drawn
 explicitly.

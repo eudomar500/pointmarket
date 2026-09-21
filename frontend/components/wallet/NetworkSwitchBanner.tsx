@@ -61,7 +61,7 @@ export default function NetworkSwitchBanner() {
   return (
     <div className="w-full bg-[var(--accent-primary)]/15 py-3 px-6 flex flex-col sm:flex-row items-center justify-between border-b border-[var(--accent-primary)]/20 text-sm z-50 relative mt-16">
       <div className="text-[var(--text-primary)] font-medium mb-3 sm:mb-0">
-        You are connected to the wrong network. PointMarket runs on {TARGET.displayName}.
+        You are connected to the wrong network. Pointmarket runs on {TARGET.displayName}.
       </div>
       <button
         type="button"

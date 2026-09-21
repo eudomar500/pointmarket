@@ -1,6 +1,6 @@
 # Architecture
 
-System-level documentation for `genlayer-p2p-arena`. Covers contract topology, cross-contract communication, state machines, storage model, and trust assumptions.
+System-level documentation for Pointmarket. Covers contract topology, cross-contract communication, state machines, storage model, and trust assumptions.
 
 ## Topology
 

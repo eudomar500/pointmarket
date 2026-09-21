@@ -9,18 +9,18 @@ If you received this codebase as a folder (not as a clone), do this first.
 ### 1.1 Create the empty repo on GitHub
 
 1. Go to https://github.com/new
-2. Repository name: `genlayer-p2p-arena` (or your preferred name)
+2. Repository name: `pointmarket` (or your preferred name)
 3. Set to **Private**
 4. **Do not** initialize with README, .gitignore, or LICENSE -- we already have those
 5. Click "Create repository"
 
 GitHub will show you the empty repo URL, something like:
-`https://github.com/YOUR_USERNAME/genlayer-p2p-arena.git`
+`https://github.com/YOUR_USERNAME/pointmarket.git`
 
 ### 1.2 Initialize and push from your local machine
 
 ```bash
-cd /path/to/genlayer-p2p-arena   # where the folder is on your machine
+cd /path/to/pointmarket   # where the folder is on your machine
 
 # Initialize git
 git init
@@ -33,14 +33,14 @@ git add .
 git commit -m "Initial commit: project structure, Trade contract, docs, threat model"
 
 # Connect to GitHub (replace YOUR_USERNAME)
-git remote add origin https://github.com/YOUR_USERNAME/genlayer-p2p-arena.git
+git remote add origin https://github.com/YOUR_USERNAME/pointmarket.git
 
 # Push
 git push -u origin main
 ```
 
 If you use SSH instead of HTTPS, replace the remote URL with:
-`git@github.com:YOUR_USERNAME/genlayer-p2p-arena.git`
+`git@github.com:YOUR_USERNAME/pointmarket.git`
 
 ### 1.3 Verify
 
@@ -67,8 +67,8 @@ For new contributors (or you on a fresh machine).
 ### 2.2 Install dependencies
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/genlayer-p2p-arena.git
-cd genlayer-p2p-arena
+git clone https://github.com/YOUR_USERNAME/pointmarket.git
+cd pointmarket
 
 task setup
 ```

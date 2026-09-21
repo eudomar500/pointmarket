@@ -1,6 +1,6 @@
 version: '3'
 
-# Orchestrator for genlayer-p2p-arena
+# Orchestrator for Pointmarket
 # Install Task: https://taskfile.dev/installation/
 # Run `task --list` to see available commands.
 

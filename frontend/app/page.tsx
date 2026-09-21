@@ -140,7 +140,7 @@ export default function Page() {
             <div ref={convergenceRef} className="absolute top-0 left-1/2 -translate-x-1/2 w-1 h-1 opacity-0" />
             <h2 className="text-5xl font-medium tracking-tight">The point where everyone meets.</h2>
             <p className="mt-6 text-lg text-[var(--text-secondary)] max-w-[640px] mx-auto">
-              PointMarket is a single point of convergence for three actors who normally operate on separate platforms.
+              Pointmarket is a single point of convergence for three actors who normally operate on separate platforms.
             </p>
           </div>
 

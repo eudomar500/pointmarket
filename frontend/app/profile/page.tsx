@@ -27,7 +27,7 @@ export default function ProfileRedirectPage() {
           Your Profile
         </h1>
         <p className="text-[var(--text-secondary)] mb-8">
-          Connect your wallet to view your on-chain activity, reputation, and PointMarket stats.
+          Connect your wallet to view your on-chain activity, reputation, and Pointmarket stats.
         </p>
         <button
           type="button"

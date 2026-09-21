@@ -1,6 +1,6 @@
 # Demo Results: End-to-End On-Chain Validation
 
-Studionet execution of the genlayer-p2p-arena protocol on May 17, 2026.
+Studionet execution of the Pointmarket protocol on May 17, 2026.
 
 All evidence below is on-chain and independently verifiable in the GenLayer Studio Explorer. This document records the as-executed sequence, the data the protocol generated, and the points where the protocol demonstrated specific behaviors documented in the threat model.
 

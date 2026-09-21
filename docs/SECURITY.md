@@ -1,6 +1,6 @@
 # Security
 
-Threat model for `genlayer-p2p-arena`. Two contracts (`Marketplace.py v1.4.7`, `PredictionMarket.py v1.1.5`) plus cross-contract threats. Threats are documented as facts: each row pairs a concrete attack with the concrete mitigation in the code.
+Threat model for Pointmarket. Two contracts (`Marketplace.py v1.4.7`, `PredictionMarket.py v1.1.5`) plus cross-contract threats. Threats are documented as facts: each row pairs a concrete attack with the concrete mitigation in the code.
 
 **Status:** MVP. Not audited. Not for production funds.
 

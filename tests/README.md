@@ -1,6 +1,6 @@
 # Tests
 
-Test taxonomy for `genlayer-p2p-arena`.
+Test taxonomy for Pointmarket.
 
 ## Two modes
 

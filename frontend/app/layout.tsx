@@ -29,7 +29,7 @@ export const metadata: Metadata = {
   },
   description:
     "Trustless P2P marketplace and meta-prediction market. Powered by AI consensus on GenLayer.",
-  applicationName: "PointMarket",
+  applicationName: "Pointmarket",
   authors: [{ name: "Islandlabs" }],
   keywords: [
     "GenLayer",
@@ -45,7 +45,7 @@ export const metadata: Metadata = {
     description:
       "Trustless P2P marketplace and meta-prediction market on GenLayer.",
     url: "https://pointmarket.app",
-    siteName: "PointMarket",
+    siteName: "Pointmarket",
     images: ["/og-image.png"],
     type: "website",
   },

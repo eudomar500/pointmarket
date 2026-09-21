@@ -87,7 +87,7 @@ export default function ConnectWalletModal({ isOpen, onClose }: ConnectWalletMod
                   Connect a Wallet
                 </h2>
                 <p className="text-[14px] text-[var(--text-secondary)] m-0">
-                  Choose a wallet provider to connect to PointMarket
+                  Choose a wallet provider to connect to Pointmarket
                 </p>
               </div>
 

@@ -176,7 +176,7 @@ export default function CreateListingDialog({ isOpen, onClose }: CreateListingDi
                   Create Listing
                 </h2>
                 <p className="text-[14px] text-[var(--text-secondary)] m-0">
-                  List an item for sale on PointMarket.
+                  List an item for sale on Pointmarket.
                 </p>
               </div>
 

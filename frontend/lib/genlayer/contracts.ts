@@ -52,7 +52,7 @@ export function getAddresses(network: NetworkKey): {
   const entry = ADDRESSES[network];
   if (entry === null) {
     throw new Error(
-      `PointMarket has no deployed contracts on ${network} yet. ` +
+      `Pointmarket has no deployed contracts on ${network} yet. ` +
         `Switch to studionet or check config/networks.ts.`,
     );
   }

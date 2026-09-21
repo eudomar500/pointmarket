@@ -133,7 +133,7 @@ export default function ProfileContent({ address }: ProfileContentProps) {
           <p className="text-[var(--text-secondary)] text-sm">
             {isYou
               ? "Make your first trade or place your first prediction."
-              : "This address has not yet participated in PointMarket."}
+              : "This address has not yet participated in Pointmarket."}
           </p>
         </div>
       ) : (
