@@ -12,18 +12,33 @@ Usage:
     export PROBE_PK=0x<64 hex chars>
     python3 deploy_bradbury.py [path/to/contract.wasm]
     python3 deploy_bradbury.py [path/to/contract.wasm] --estimate-only
+    python3 deploy_bradbury.py --source contracts/X.py [--arg V ...] [--dry-run]
 
 --estimate-only builds the identical addTransaction calldata and stops at
 eth_estimateGas. It sends nothing, needs no funds, and works with a throwaway
 key, so it is the safe way to check a payload before spending.
 
+--source <file> deploys a Python contract source instead of a wasm file. It is
+run through strip_source.py first, the step docs/ESCROW.md and docs/ARBITER.md
+use to produce the deployed form, and the stripped bytes are what is sent.
+
+--arg <value> (repeatable) passes constructor arguments in order, each as a
+string. With none, the constructor runs with its defaults.
+
+--dry-run does everything a deploy does, including signing, and stops before
+eth_sendRawTransaction.
+
 The private key is read ONLY from the PROBE_PK environment variable. It is never
 read from a file or an argument and is never printed.
 """
 
+import argparse
+import hashlib
 import json
 import os
+import subprocess
 import sys
+import tempfile
 import urllib.request
 from pathlib import Path
 
@@ -42,6 +57,7 @@ from web3.logs import DISCARD
 # and is not vendored here: it is over both ceilings measured below and cannot
 # be deployed. The default is the tiny probe that was deployed successfully.
 DEFAULT_WASM = Path(__file__).resolve().parent / "tiny-wasm" / "tiny_probe.wasm"
+STRIP_SOURCE = Path(__file__).resolve().parent / "strip_source.py"
 
 # Bradbury has been observed to take 20-25 minutes to reach ACCEPTED, including
 # leader rotations. genlayer-py defaults to 10 retries at 3s, which is 30s, so
@@ -93,9 +109,35 @@ def rpc(method, params):
         return json.loads(resp.read())
 
 
-def estimate_only(client, account, code, final: bool = True) -> int:
+def signed_gas_limit(estimated_gas: int) -> int:
+    """The limit the deploy is signed with: 3x the estimate, clamped to 2^24."""
+    gas = min(estimated_gas * GAS_MULTIPLIER, MAX_TX_GAS)
+    if gas < estimated_gas:
+        die(f"estimate {estimated_gas:,} already exceeds the cap {MAX_TX_GAS:,}")
+    return gas
+
+
+def stripped_source(path: Path) -> bytes:
+    """Run strip_source.py on path and return the bytes it writes.
+
+    This is the same command the docs run to produce the deployed form, so the
+    bytes signed here are the bytes the tests ran against.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        out = Path(tmp) / f"{path.stem}.deploy.py"
+        done = subprocess.run(
+            [sys.executable, str(STRIP_SOURCE), str(path), str(out)],
+            capture_output=True,
+            text=True,
+        )
+        if done.returncode != 0 or not out.is_file():
+            die(f"strip_source.py failed on {path}:\n{done.stdout}{done.stderr}")
+        return out.read_bytes()
+
+
+def estimate_only(client, account, code, args=(), final: bool = True) -> int:
     """Build exactly what deploy_contract builds, then stop at estimation."""
-    encoded = build_deploy_calldata(client, account, code)
+    encoded = build_deploy_calldata(client, account, code, args)
     consensus = client.chain.consensus_main_contract["address"]
     print(f"to           : {consensus} (ConsensusMain)")
     print(f"calldata     : {len(encoded)} hex chars")
@@ -120,15 +162,20 @@ def estimate_only(client, account, code, final: bool = True) -> int:
             "dominated by calldata size."
         )
     if final:
+        if gas <= MAX_TX_GAS:
+            print(f"gas limit    : {signed_gas_limit(gas):,} would be signed "
+                  f"({GAS_MULTIPLIER}x estimate, clamped to 2^24)")
         print("nothing was sent")
     return gas
 
 
-def build_deploy_calldata(client, account, code):
+def build_deploy_calldata(client, account, code, args=()):
     """Exactly what genlayer_py.contracts.actions.deploy_contract builds."""
     data = [
         code,
-        calldata.encode(make_calldata_object(method=None, args=[], kwargs=None)),
+        calldata.encode(
+            make_calldata_object(method=None, args=list(args), kwargs=None)
+        ),
         False,  # leader_only
     ]
     return _encode_add_transaction_data(
@@ -140,7 +187,9 @@ def build_deploy_calldata(client, account, code):
     )
 
 
-def send_deploy(client, account, code, estimated_gas: int) -> str:
+def send_deploy(
+    client, account, code, estimated_gas: int, args=(), dry_run: bool = False
+):
     """Sign and broadcast the deploy, printing the L2 hash before waiting.
 
     genlayer-py's deploy_contract signs, sends and waits inside one call and
@@ -148,12 +197,10 @@ def send_deploy(client, account, code, estimated_gas: int) -> str:
     "Transaction failed" with no hash to investigate. This does the same work
     but announces the hash first, and signs with headroom over the estimate.
     """
-    encoded = build_deploy_calldata(client, account, code)
+    encoded = build_deploy_calldata(client, account, code, args)
     consensus = client.chain.consensus_main_contract["address"]
 
-    gas = min(estimated_gas * GAS_MULTIPLIER, MAX_TX_GAS)
-    if gas < estimated_gas:
-        die(f"estimate {estimated_gas:,} already exceeds the cap {MAX_TX_GAS:,}")
+    gas = signed_gas_limit(estimated_gas)
 
     latest = client.w3.eth.get_block("latest")
     priority = client.w3.to_wei(2, "gwei")
@@ -178,6 +225,9 @@ def send_deploy(client, account, code, estimated_gas: int) -> str:
     print(f"L2 TX HASH   : {l2_hash}")
     print(f"L2 explorer  : https://zksync-os-testnet-genlayer.explorer.zksync.dev"
           f"/tx/{l2_hash}")
+    if dry_run:
+        print("\nDRY RUN: signed, not broadcast. nothing was sent")
+        return None
     print("broadcasting ...")
 
     out = rpc("eth_sendRawTransaction", [raw])
@@ -217,6 +267,16 @@ def send_deploy(client, account, code, estimated_gas: int) -> str:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("wasm", nargs="?", type=Path)
+    parser.add_argument("--source", type=Path)
+    parser.add_argument("--arg", action="append", default=[], dest="args")
+    parser.add_argument("--estimate-only", action="store_true")
+    parser.add_argument("--dry-run", action="store_true")
+    opts = parser.parse_args()
+    estimate = opts.estimate_only
+    ctor_args = opts.args
+
     private_key = os.environ.get("PROBE_PK")
     if not private_key:
         die("PROBE_PK is not set. export PROBE_PK=0x<64 hex chars>")
@@ -224,16 +284,23 @@ def main() -> None:
     if not private_key.startswith("0x") or len(private_key) != 66:
         die("PROBE_PK must be a 0x-prefixed 32-byte hex string")
 
-    argv = [a for a in sys.argv[1:] if a != "--estimate-only"]
-    estimate = "--estimate-only" in sys.argv[1:]
+    if opts.source and opts.wasm:
+        die("give either a wasm file or --source, not both")
 
-    wasm_path = Path(argv[0]) if argv else DEFAULT_WASM
-    if not wasm_path.is_file():
-        die(f"wasm file not found: {wasm_path}")
+    if opts.source:
+        wasm_path = opts.source
+        if not wasm_path.is_file():
+            die(f"source file not found: {wasm_path}")
+        source_size = wasm_path.stat().st_size
+        wasm_bytes = stripped_source(wasm_path)
+    else:
+        wasm_path = opts.wasm or DEFAULT_WASM
+        if not wasm_path.is_file():
+            die(f"wasm file not found: {wasm_path}")
 
-    wasm_bytes = wasm_path.read_bytes()
-    if wasm_bytes[:4] != b"\x00asm":
-        die(f"{wasm_path} does not start with the wasm magic bytes")
+        wasm_bytes = wasm_path.read_bytes()
+        if wasm_bytes[:4] != b"\x00asm":
+            die(f"{wasm_path} does not start with the wasm magic bytes")
 
     if len(wasm_bytes) > MAX_CODE_BYTES:
         die(
@@ -246,8 +313,14 @@ def main() -> None:
         )
 
     account = create_account(private_key)
-    print(f"wasm file    : {wasm_path}")
-    print(f"wasm size    : {len(wasm_bytes)} bytes")
+    if opts.source:
+        print(f"source file  : {wasm_path} ({source_size} bytes)")
+        print(f"stripped size: {len(wasm_bytes)} bytes (strip_source.py)")
+    else:
+        print(f"wasm file    : {wasm_path}")
+        print(f"wasm size    : {len(wasm_bytes)} bytes")
+    print(f"sha256       : {hashlib.sha256(wasm_bytes).hexdigest()}")
+    print(f"ctor args    : {ctor_args if ctor_args else '(none, defaults)'}")
     print(f"deployer     : {account.address}")
     print(f"rpc          : {testnet_bradbury.rpc_urls['default']['http'][0]}")
     print(f"chain id     : {testnet_bradbury.id}")
@@ -255,12 +328,12 @@ def main() -> None:
     client = create_client(chain=testnet_bradbury, account=account)
 
     if estimate:
-        estimate_only(client, account, wasm_bytes)
+        estimate_only(client, account, wasm_bytes, ctor_args)
         return
 
     # Check the gas cap before anything is signed. genlayer-py signs the raw
     # estimate, so an over-cap estimate is a transaction the node rejects.
-    gas = estimate_only(client, account, wasm_bytes, final=False)
+    gas = estimate_only(client, account, wasm_bytes, ctor_args, final=False)
     if gas > MAX_TX_GAS:
         die(
             f"estimated gas {gas:,} exceeds the per-transaction cap "
@@ -272,13 +345,20 @@ def main() -> None:
     balance = client.w3.eth.get_balance(account.address)
     print(f"balance      : {balance} wei")
     if balance == 0:
-        die(
+        message = (
             "deployer has zero balance; fund it at "
             "https://testnet-faucet.genlayer.foundation before deploying"
         )
+        if not opts.dry_run:
+            die(message)
+        print(f"note         : {message}")
 
     print("\nsubmitting deploy transaction ...")
-    tx_hash = send_deploy(client, account, wasm_bytes, gas)
+    tx_hash = send_deploy(
+        client, account, wasm_bytes, gas, ctor_args, dry_run=opts.dry_run
+    )
+    if opts.dry_run:
+        return
 
     print(
         f"\nwaiting for ACCEPTED (up to "
