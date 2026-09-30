@@ -314,7 +314,12 @@ genlayer trace <TX_HASH>
 
 ## Results
 
-Not yet run. Contract `<ADDRESS>`, deployed in tx `<DEPLOY_TX>`.
+Run of 2026-09-30 on Testnet Bradbury. Contract
+`0xa46A2c9804Ca2A41e06ACC7f5337F93A0973e3C4`, deployed in tx
+`0xa548c51173878541dbc374744a0a5f948ce60687350708f3f8f7aefeaab7d3a0`
+(5 of 5 AGREE, FINALIZED). CID
+`bafkreiftcv76oytyik33cb3tezhlcy664dumgr2eb5ij7wkmx7qkc7xs3q`. All txs below
+are FINALIZED.
 
 Expected sha256 is
 `b3157fe7627842b7b10773264eb163dee0e8c347440f509fd94cbfe0a17ef2dc` and expected
@@ -323,10 +328,35 @@ value.
 
 | gateway | status | byte_length | sha256 match | is_image | subject | error_class | validators agreed | tx |
 |---------|--------|-------------|--------------|----------|---------|-------------|-------------------|----|
-| pinata | | | | | | | | |
-| filebase | | | | | | | | |
-| pinit | | | | | | | | |
-| trustless | | | | | | | | |
+| pinata | - | - | - | - | - | - | no record; see below | `0x043dafd616cedbe2d38262bfb7ba8d6ac28685557e2c2a6c3f6dd549cb83493e` (VALIDATORS_TIMEOUT), `0x831846cf448b86bf6c6ce01ac0ffb0bf4bfb42a4000914d16c1f2d75a9a51530` (LEADER_TIMEOUT) |
+| filebase | 200 | 61111 | yes | true | `IPFS_LOGO` | `""` | yes | `0xca79719bdbf42f4fa283462819d178d119ba96c1cd620aa1a20643203ab05a55` (probe 0) |
+| pinit | 200 | 61111 | yes | true | `IPFS_LOGO` | `""` | yes | `0x405867fb6333e68a803e3146b63dd58f8129adca8ea04f1ca5f44cbcd7a7bdaf` (probe 1) |
+| trustless | 200 | 61111 | yes | true | `IPFS_LOGO` | `""` | yes | `0x270a25defe701d9bee6407a5d14e80da037ce756273173728c795bc24e7ea2d7` (probe 2) |
+
+`dominant_color` came back as `dark blue` on all three stored records.
+
+pinata was tried twice and neither attempt produced a record. The first tx
+ended in VALIDATORS_TIMEOUT; the second ended in LEADER_TIMEOUT, rotated, and
+then finalized without executing. `get_probe_count` stayed at 3. From
+validators the gateway is unusable: the request hangs until consensus times
+out, so there is not even an HTTP status to record.
+
+trustless served the body as `application/vnd.ipld.raw` (with `?format=raw` and
+`Accept-Encoding: identity`), the hash still matched, and the model still read
+the image, so content-type sniffing is not a blocker.
+
+### Results
+
+Validators on Bradbury can fetch an image from a public IPFS gateway, hash it
+identically, and pass it to the model, which reads it correctly. Three of the
+four gateways work; pinata does not. Decision for v1.5: filebase is the jury's
+gateway and pinit is the fallback. trustless works too, but it returns a raw
+block content type, so it is not the default.
+
+One operational note: `genlayer write` can report "Error during write
+operation" on these calls. The CLI's wait for the receipt gives up because the
+nondet block takes longer than its retries. The tx is still sent and shows up
+in the explorer, so check there (or with `genlayer receipt`) before retrying.
 
 ## How to read the outcome
 

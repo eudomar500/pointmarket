@@ -236,6 +236,13 @@ sent as `{'ExecPrompt': {'prompt', 'response_format', 'images'}}` (lines 97-105)
 The repo's roadmap note in `docs/FUTURE_FIAT_ESCROW.md` states the 2-image limit
 as a documented feature; that is confirmed here in code, not just in docs.
 
+Measured on Testnet Bradbury on 2026-09-30: validators fetched a PNG from a
+public IPFS gateway, hashed it identically, and the model read it through
+`images=`, with validator agreement on filebase, pinit and trustless; pinata
+hung until consensus timed out. For the v1.5 jury that means filebase as the
+gateway with pinit as fallback. Details and tx hashes are in
+`experiments/media-probe/`.
+
 ### A.4 Equivalence principles and `gl.vm` -- EXISTS in both
 
 Pinned SDK, `genlayer/gl/eq_principle.py:1-5` exports exactly
