@@ -529,6 +529,8 @@ class Contract(gl.Contract):
             out[f.name] = str(v) if f.type in (Address, u256) else v
         out["trade_id"] = str(trade_id)
         out["claim_at"] = self._claim_at(t) if t.shipped_at else 0
+        out["response_until"] = t.disputed_at + DISPUTE_RESPONSE_WINDOW if t.disputed_at else 0
+        out["unboxing_until"] = t.disputed_at + UNBOXING_WINDOW if t.disputed_at else 0
         out["buyer_first_seen"] = self.first_seen.get(t.buyer, 0)
         out["seller_first_seen"] = self.first_seen.get(t.seller, 0)
         return out

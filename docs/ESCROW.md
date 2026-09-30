@@ -80,7 +80,7 @@ attestation` and stores nothing.
 
 | method | returns |
 |---|---|
-| `get_trade(trade_id)` | every `TradeData` field (addresses and wei as strings, times and kinds as ints), plus `trade_id`, `claim_at` (0 before shipping), `buyer_first_seen`, `seller_first_seen` |
+| `get_trade(trade_id)` | every `TradeData` field (addresses and wei as strings, times and kinds as ints), plus `trade_id`, `claim_at` (0 before shipping), `response_until` (`disputed_at + DISPUTE_RESPONSE_WINDOW`, 0 before a dispute), `unboxing_until` (`disputed_at + UNBOXING_WINDOW`, 0 before a dispute), `buyer_first_seen`, `seller_first_seen` |
 | `get_eligible(start, count)` | `{"total": n, "ids": [...]}`, at most 1,000 ids: trades completed with the seller paid, in completion order |
 | `get_contract_info()` | version, admin, pending admin, paused, arbiter, router, carrier domains, upgrade state, total trades, `fees_collected` |
 

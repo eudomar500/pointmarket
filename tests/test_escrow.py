@@ -1053,7 +1053,8 @@ ARBITER_VIEW = {
     "packing_media_cid": str, "unboxing_media_cid": str, "seller_response_cid": str,
     "buyer_evidence": str, "seller_evidence": str, "responded": bool,
     "created_at": int, "paid_at": int, "shipped_at": int, "delivered_at": int,
-    "disputed_at": int, "proof_at": int, "claim_at": int, "price": str, "fee_amount": str,
+    "disputed_at": int, "proof_at": int, "claim_at": int, "response_until": int,
+    "unboxing_until": int, "price": str, "fee_amount": str,
     "buyer_bond": str, "seller_bond": str, "seller": str, "buyer": str,
     "carrier_domains": str, "verdict_hash": str, "was_disputed": bool,
     "buyer_wins": bool, "resolved_by_default": bool, "trade_id": str,
@@ -1071,6 +1072,18 @@ def test_get_trade_shape(w):
         assert isinstance(t[key], typ), key
         if typ is int:
             assert not isinstance(t[key], bool), key
+
+
+def test_get_trade_dispute_deadlines(w):
+    # The Arbiter reads its windows here, so it carries no constants of its own.
+    tid = w.shipped()
+    t = w.trade(tid)
+    assert (t["response_until"], t["unboxing_until"]) == (0, 0)
+    w.at(10)
+    w.call(w.buyer, "open_dispute", tid, DAMAGED, "Arrived crushed", "", value=BUYER_BOND)
+    t = w.trade(tid)
+    assert t["response_until"] == BASE_TS + 10 + RESPONSE_WINDOW
+    assert t["unboxing_until"] == BASE_TS + 10 + UNBOXING_WINDOW
 
 
 def test_get_eligible_slice(w):
