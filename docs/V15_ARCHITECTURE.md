@@ -333,6 +333,19 @@ part most likely to grow after the first real disputes.
    only if the validator's own run also raises `UserError` (the v1.4.7
    pattern).
 
+**Note, 2026-10-01: one image per resolve.** Steps 1 to 4 above are
+superseded. On Bradbury, `resolve` with two images in one vision call timed
+out (round 0 [T,T,A,T,A]; final round 6 TIMEOUT vs 5 AGREE; a retry hit
+LEADER_TIMEOUT), while the media probe, one image per call, got 5 of 5 AGREE.
+The jury now fetches one image (NOT_AS_DESCRIBED and DAMAGED: unboxing;
+NOT_RECEIVED: packing; same gateways, cap and digest check) and asks for a
+closed label against the listing title and description: MATCHES / DIFFERENT /
+UNCLEAR, or INTACT / DAMAGED / UNCLEAR for DAMAGED. Only DIFFERENT (or
+DAMAGED) wins for the buyer; the claimant carries the burden. The validator
+compares the label and the digest result. Rules R1 to R6 are unchanged; a
+digest failure blanks the image and R2, R3 or R6 decides. Interface and
+prompt: `docs/ARBITER.md`.
+
 Then `Escrow.settle(trade_id, buyer_wins, sha256(reasoning))` is emitted
 `on='finalized'`. The reasoning text is the nondet block's result, readable
 in the `resolve` receipt and checkable against `verdict_hash` on the Escrow;
