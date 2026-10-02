@@ -1,41 +1,23 @@
 "use client";
 
 import { useWriteWithTracking } from "@/lib/tx/useWriteWithTracking";
-import { getAddresses } from "@/lib/genlayer/contracts";
+import { claimDisputeDefault as claimDisputeDefaultWrite } from "@/lib/genlayer/writes";
 
 /**
- * Wrapper hook for the marketplace claim_dispute_default write. Lets
- * the dispute initiator close a stalled dispute and win by default
- * when the other party fails to respond within
- * DISPUTE_RESPONSE_WINDOW_SECONDS. The contract requires:
- *   - trade state is DISPUTED.
- *   - msg.sender is the dispute_initiator.
- *   - now >= disputed_at + DISPUTE_RESPONSE_WINDOW.
- * On success the initiator wins, the funds are released to them, their
- * bond is returned, and the absent party's bond suffers a
- * DEFAULT_JUDGMENT_PENALTY_BPS deduction before being added to fees.
- * The trade transitions to COMPLETED or REFUNDED depending on which
- * side initiated, and resolved_by_default is set to true.
+ * Escrow claim_dispute_default. Buyer only, on a DISPUTED trade the
+ * seller did not answer, from response_until. Refused when burden rule
+ * R1, R2 or R3 would hold (that case goes to Arbiter.resolve). Pays the
+ * buyer the price and the bond minus a 5% penalty on the bond.
  */
 export function useClaimDisputeDefault() {
   const { execute, pending, error } = useWriteWithTracking();
 
-  const claimDisputeDefault = async (tradeId: number): Promise<string> => {
-    return execute({
+  const claimDisputeDefault = async (tradeId: number): Promise<string> =>
+    execute({
       method: "claim_dispute_default",
       context: `Trade #${tradeId}`,
-      write: async (client, network) => {
-        const { marketplace } = getAddresses(network);
-        const hash = await client.writeContract({
-          address: marketplace,
-          functionName: "claim_dispute_default",
-          args: [BigInt(tradeId)],
-          value: 0n,
-        });
-        return hash;
-      },
+      write: (client, network) => claimDisputeDefaultWrite(client, network, BigInt(tradeId)),
     });
-  };
 
   return { claimDisputeDefault, pending, error };
 }

@@ -8,7 +8,7 @@ import { useCountdown, formatRemaining } from "@/lib/hooks/useCountdown";
 import { useWalletStore } from "@/lib/wallet/store";
 import { NETWORKS } from "@/config/networks";
 import { DEFAULT_NETWORK } from "@/lib/genlayer/contracts";
-import { getMarketplaceTimings } from "@/lib/genlayer/timings";
+import { getEscrowTimings } from "@/lib/genlayer/timings";
 import { formatGenBalance } from "@/lib/wallet/format";
 import type { TxMethod } from "@/lib/tx/types";
 
@@ -39,7 +39,7 @@ export default function ClaimStuckDisputeRefundButton({
   const [submittedHash, setSubmittedHash] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const timings = getMarketplaceTimings(DEFAULT_NETWORK);
+  const timings = getEscrowTimings(DEFAULT_NETWORK);
   const unlockAt = disputedAt + timings.publicForceRefundDelaySeconds;
   const { remainingSeconds, isReady } = useCountdown(unlockAt);
 
@@ -138,15 +138,15 @@ export default function ClaimStuckDisputeRefundButton({
                 {title}
               </div>
               <div className="text-xs uppercase tracking-wider text-[var(--text-secondary)] mb-1">
-                Refunding to buyer
+                Split 50/50 between buyer and seller
               </div>
               <div className="text-2xl font-medium text-[var(--text-primary)] font-mono">
-                {formatGenBalance(price)}
+                {formatGenBalance(price / 2n)} each
               </div>
             </div>
 
             <p className="text-sm text-[var(--text-secondary)] mb-6">
-              This permissionless escape hatch is available to anyone once the public delay has elapsed. It refunds the buyer and returns both bonds. Use when both the LLM and the admin have failed to act. The trade transitions to REFUNDED with no winner declared.
+              This permissionless escape hatch is available to anyone once the public delay has elapsed. It splits the price 50/50 between buyer and seller and returns each bond to its poster. Use it when the jury never reached consensus and the admin has not acted. The trade transitions to REFUNDED with no winner declared.
             </p>
 
             {errorMsg ? (

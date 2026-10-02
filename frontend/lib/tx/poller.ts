@@ -1,10 +1,11 @@
 "use client";
 import { useTxStore } from "./store";
 import {
+  type PendingTx,
   type TxRawStatus,
-  type TxUiState,
   TX_POLL_INTERVAL_MS,
 } from "./types";
+import { classifyReceipt } from "./outcome";
 import { createReadClient } from "../genlayer/client";
 import { DEFAULT_NETWORK } from "../genlayer/contracts";
 
@@ -30,16 +31,13 @@ import { DEFAULT_NETWORK } from "../genlayer/contracts";
  * - Errors are logged but never thrown. A transient RPC failure should
  *   not stop the poller; we just retry on the next tick.
  *
- * - The SDK's `isDecidedState(status)` is the single source of truth
- *   for "should we stop polling this TX". It returns true for
- *   FINALIZED, CANCELED, UNDETERMINED, VALIDATORS_TIMEOUT, LEADER_TIMEOUT.
+ * - Polling stops at FINALIZED, CANCELED, UNDETERMINED,
+ *   VALIDATORS_TIMEOUT or LEADER_TIMEOUT. FINALIZED is not success by
+ *   itself: classifyReceipt (lib/tx/outcome.ts) also reads the consensus
+ *   result and the execution result, and a FINALIZED receipt without an
+ *   agreement or with a contract error lands in `failed`.
  */
 
-/**
- * Maps a raw GenLayer transaction status to a user-facing UI state.
- * The 14 protocol states collapse into 4 visible buckets. See
- * docs/TX_LIFECYCLE.md for the full mapping rationale.
- */
 /**
  * Local mapping from the numeric `status` field in receipts to the
  * GenLayer protocol state names. The SDK declares
@@ -67,27 +65,24 @@ export const STATUS_NAMES: TxRawStatus[] = [
   "LEADER_TIMEOUT",
 ];
 
-export function mapRawStatusToUiState(status: TxRawStatus): TxUiState {
-  switch (status) {
-    case "UNINITIALIZED":
-    case "PENDING":
-    case "PROPOSING":
-    case "COMMITTING":
-    case "REVEALING":
-      return "submitted";
-    case "ACCEPTED":
-    case "READY_TO_FINALIZE":
-    case "APPEAL_REVEALING":
-    case "APPEAL_COMMITTING":
-      return "accepted";
-    case "FINALIZED":
-      return "finalized";
-    case "CANCELED":
-    case "UNDETERMINED":
-    case "VALIDATORS_TIMEOUT":
-    case "LEADER_TIMEOUT":
-      return "failed";
-  }
+/** A receipt snapshot as a store patch: status, consensus result, outcome. */
+export function receiptToPatch(
+  receipt: { status?: unknown; result?: unknown; txExecutionResult?: unknown },
+  previous?: PendingTx,
+): Partial<Omit<PendingTx, "txHash">> {
+  const statusNum = typeof receipt.status === "number" ? receipt.status : Number(receipt.status ?? 0);
+  const rawStatus = (STATUS_NAMES[statusNum] ?? "UNINITIALIZED") as TxRawStatus;
+  const outcome = classifyReceipt(rawStatus, receipt.result, receipt.txExecutionResult);
+  const terminal = outcome.uiState === "finalized" || outcome.uiState === "failed";
+  return {
+    rawStatus,
+    uiState: outcome.uiState,
+    resultName: outcome.resultName,
+    executionName: outcome.executionName,
+    failureReason: outcome.failureReason,
+    retryable: outcome.retryable,
+    decidedAt: terminal ? previous?.decidedAt ?? Date.now() : undefined,
+  };
 }
 
 /**
@@ -110,14 +105,8 @@ async function pollOne(txHash: string): Promise<void> {
       interval: 1000,
     });
 
-    
-    const statusNum = typeof receipt.status === "number" ? receipt.status : Number(receipt.status ?? 0);
-    const rawStatus = (STATUS_NAMES[statusNum] ?? "UNINITIALIZED") as TxRawStatus;
-    const uiState = mapRawStatusToUiState(rawStatus);
-
     store.updateTx(txHash, {
-      rawStatus,
-      uiState,
+      ...receiptToPatch(receipt, tracked),
       lastPolledAt: Date.now(),
     });
   } catch (err) {

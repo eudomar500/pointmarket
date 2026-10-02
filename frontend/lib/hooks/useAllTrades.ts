@@ -1,21 +1,25 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
-import { DEFAULT_NETWORK } from "@/lib/genlayer/contracts";
-import { getTradeSummary, getListingDetails } from "@/lib/genlayer/reads";
+import { DEFAULT_NETWORK, type LegacyMarketplace } from "@/lib/genlayer/contracts";
+import {
+  getLegacyListingDetails,
+  getLegacyMetrics,
+  getLegacyTradeSummary,
+  getTrade,
+} from "@/lib/genlayer/reads";
 import { createReadClient } from "@/lib/genlayer/client";
-import type { ReadClient } from "@/lib/genlayer/client";
-import { useMarketplaceMetrics } from "./useMarketplaceMetrics";
+import { useEscrowInfo } from "./useEscrowInfo";
 
 export type TradeListItem = {
   id: number;
   title: string;
-  description: string;
   seller: string;
   buyer: string;
   price: bigint;
   state: number;
-  shipped_at: number;
-  disputed: boolean;
+  createdAt: number;
+  /** Trade page for this row: /trade/<id> or /legacy/<key>/<id>. */
+  href: string;
 };
 
 const READ_DELAY_MS = 250;
@@ -43,61 +47,81 @@ async function withRateLimitRetry<T>(
   }
 }
 
-async function fetchTradeBundle(
-  client: ReadClient,
-  id: number,
-): Promise<TradeListItem | null> {
-  try {
-    const listing = await withRateLimitRetry(() =>
-      getListingDetails(client, DEFAULT_NETWORK, id),
-    );
-    await sleep(READ_DELAY_MS);
-    const summary = await withRateLimitRetry(() =>
-      getTradeSummary(client, DEFAULT_NETWORK, id),
-    );
-    return {
-      id,
-      title: listing.title,
-      description: listing.description,
-      seller: summary.seller,
-      buyer: summary.buyer,
-      price: BigInt(summary.price),
-      state: Number(summary.state),
-      shipped_at: Number(summary.shipped_at),
-      disputed: Boolean(summary.disputed),
-    };
-  } catch {
-    // After retries, give up on this trade but do not block the others.
-    return null;
+/**
+ * Sequential reads with a small pause between trades. Bradbury's public
+ * RPC throttles concurrent gen_call requests; serializing keeps us within
+ * its limits while the marketplace is small. When it grows, this should
+ * move to batched reads or an indexer.
+ */
+async function readSequentially(
+  total: number,
+  read: (id: number) => Promise<TradeListItem>,
+): Promise<TradeListItem[]> {
+  const results: TradeListItem[] = [];
+  for (let i = 0; i < total; i++) {
+    try {
+      results.push(await withRateLimitRetry(() => read(i)));
+    } catch {
+      // After retries, give up on this trade but do not block the others.
+    }
+    if (i < total - 1) await sleep(READ_DELAY_MS);
   }
+  return results;
 }
 
+/** Every trade on the v1.5 Escrow, one get_trade per trade. */
 export function useAllTrades() {
-  const { data: metrics } = useMarketplaceMetrics();
-  const total = metrics?.totalTradesCreated ?? 0;
+  const { data: info } = useEscrowInfo();
+  const total = info ? Number(info.total_trades) : 0;
   return useQuery({
-    queryKey: ["marketplace", "all-trades", total],
+    queryKey: ["escrow", "all-trades", total],
     queryFn: async (): Promise<TradeListItem[]> => {
-      if (total === 0) return [];
       const client = createReadClient(DEFAULT_NETWORK);
-      const results: TradeListItem[] = [];
-      // Sequential reads with a small inter-trade pause. Bradbury's
-      // public RPC throttles concurrent gen_call requests; serializing
-      // keeps us within its limits while we have a small marketplace.
-      // When the marketplace grows, this should move to batched reads
-      // or a backend indexer.
-      for (let i = 0; i < total; i++) {
-        const trade = await fetchTradeBundle(client, i);
-        if (trade !== null) {
-          results.push(trade);
-        }
-        if (i < total - 1) {
-          await sleep(READ_DELAY_MS);
-        }
-      }
-      return results;
+      return readSequentially(total, async (id) => {
+        const t = await getTrade(client, DEFAULT_NETWORK, id);
+        return {
+          id,
+          title: t.title,
+          seller: t.seller,
+          buyer: t.buyer,
+          price: t.price,
+          state: t.state,
+          createdAt: t.createdAt,
+          href: `/trade/${id}`,
+        };
+      });
     },
     enabled: total > 0,
     staleTime: 30_000,
+  });
+}
+
+/** Every trade on one legacy v1.4.x Marketplace, read only. */
+export function useLegacyTrades(source: LegacyMarketplace | undefined) {
+  return useQuery({
+    queryKey: ["legacy", source?.key ?? "none", "all-trades"],
+    queryFn: async (): Promise<TradeListItem[]> => {
+      if (!source) return [];
+      const client = createReadClient(DEFAULT_NETWORK);
+      const metrics = await getLegacyMetrics(client, source.address);
+      const total = Number(metrics.total_trades_created);
+      return readSequentially(total, async (id) => {
+        const listing = await getLegacyListingDetails(client, source.address, id);
+        await sleep(READ_DELAY_MS);
+        const summary = await getLegacyTradeSummary(client, source.address, id);
+        return {
+          id,
+          title: listing.title,
+          seller: summary.seller,
+          buyer: summary.buyer,
+          price: BigInt(summary.price),
+          state: Number(summary.state),
+          createdAt: Number(summary.created_at),
+          href: `/legacy/${source.key}/${id}`,
+        };
+      });
+    },
+    enabled: Boolean(source),
+    staleTime: 60_000,
   });
 }

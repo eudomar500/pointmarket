@@ -11,8 +11,11 @@ import { useWalletStore } from "@/lib/wallet/store";
 import { useWriteWithTracking } from "@/lib/tx/useWriteWithTracking";
 import { createListing } from "@/lib/genlayer/writes";
 import { DEFAULT_NETWORK } from "@/lib/genlayer/contracts";
+import { DESCRIPTION_MAX, MIN_PRICE, TITLE_MAX } from "@/lib/genlayer/escrow";
+import { codePoints } from "@/lib/genlayer/precheck";
 import { NETWORKS } from "@/config/networks";
 import { truncateAddress } from "@/lib/wallet/format"; // Reusing for txHash truncation
+import MediaUpload from "@/components/media/MediaUpload";
 
 interface CreateListingDialogProps {
   isOpen: boolean;
@@ -27,6 +30,8 @@ export default function CreateListingDialog({ isOpen, onClose }: CreateListingDi
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [priceStr, setPriceStr] = useState("");
+  const [listingCid, setListingCid] = useState<string | null>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
   
   const [titleError, setTitleError] = useState("");
   const [descError, setDescError] = useState("");
@@ -57,6 +62,8 @@ export default function CreateListingDialog({ isOpen, onClose }: CreateListingDi
       setTitle("");
       setDescription("");
       setPriceStr("");
+      setListingCid(null);
+      setPhotoBusy(false);
       setTitleError("");
       setDescError("");
       setPriceError("");
@@ -71,18 +78,26 @@ export default function CreateListingDialog({ isOpen, onClose }: CreateListingDi
     setPriceError("");
     setFormError("");
 
-    if (!title || title.length < 1 || title.length > 100) {
-      setTitleError("Title must be between 1 and 100 characters");
+    const titleLength = codePoints(title);
+    if (titleLength < 1 || titleLength > TITLE_MAX) {
+      setTitleError(`Title must be between 1 and ${TITLE_MAX} characters`);
       isValid = false;
     }
 
-    if (!description || description.length < 1 || description.length > 500) {
-      setDescError("Description must be between 1 and 500 characters");
+    const descLength = codePoints(description);
+    if (descLength < 1 || descLength > DESCRIPTION_MAX) {
+      setDescError(`Description must be between 1 and ${DESCRIPTION_MAX} characters`);
       isValid = false;
     }
 
     const priceNum = parseFloat(priceStr);
-    if (isNaN(priceNum) || priceNum <= 0 || priceNum >= 1000) {
+    let priceWei = 0n;
+    try {
+      priceWei = parseEther(priceStr);
+    } catch {
+      priceWei = 0n;
+    }
+    if (isNaN(priceNum) || priceWei < MIN_PRICE || priceNum >= 1000) {
       setPriceError("Price must be between 0.001 and 999.999 GEN");
       isValid = false;
     }
@@ -109,10 +124,11 @@ export default function CreateListingDialog({ isOpen, onClose }: CreateListingDi
       const hash = await execute({
         method: "create_listing",
         context: title,
-        write: (client, network) => createListing(client, network, { 
-          title, 
-          description, 
-          price: priceWei 
+        write: (client, network) => createListing(client, network, {
+          title,
+          description,
+          price: priceWei,
+          listingMediaCid: listingCid ?? "",
         }),
       });
 
@@ -129,14 +145,14 @@ export default function CreateListingDialog({ isOpen, onClose }: CreateListingDi
           </a>
         ),
       });
-    } catch (err: any) {
-      // execute catches error and exposes it via writeError state, 
-      // but we can also handle it locally if needed.
+    } catch {
+      // execute exposes the error through writeError, rendered above the form.
     }
   };
 
   // derived state for submit button
-  const canSubmit = status === "connected" && chainId === 4221 && !pending;
+  // A photo that is chosen but not pinned yet would be silently dropped.
+  const canSubmit = status === "connected" && chainId === 4221 && !pending && !photoBusy;
 
   if (!mounted) return null;
 
@@ -159,7 +175,7 @@ export default function CreateListingDialog({ isOpen, onClose }: CreateListingDi
               exit={{ opacity: 0, scale: 0.95 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
               onClick={(e) => e.stopPropagation()}
-              className="relative w-full max-w-[500px] flex flex-col bg-[var(--bg-elevated)] rounded-2xl border border-[var(--border-subtle)] shadow-2xl"
+              className="relative w-full max-w-[540px] flex flex-col bg-[var(--bg-elevated)] rounded-2xl border border-[var(--border-subtle)] shadow-2xl"
             >
               <div className="p-6 pb-4 flex-shrink-0 relative border-b border-[var(--border-subtle)]">
                 <button
@@ -238,6 +254,15 @@ export default function CreateListingDialog({ isOpen, onClose }: CreateListingDi
                   />
                   {priceError && <span className="text-xs text-[var(--danger)]">{priceError}</span>}
                 </div>
+
+                <MediaUpload
+                  label="Listing photo (optional)"
+                  hint="The item as it is. In a not as described dispute, a listing without a photo loses by rule."
+                  cid={listingCid}
+                  onCid={setListingCid}
+                  onBusyChange={setPhotoBusy}
+                  disabled={pending}
+                />
 
                 <div className="pt-4 border-t border-[var(--border-subtle)] mt-2">
                   <button

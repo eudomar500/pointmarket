@@ -45,8 +45,8 @@ export default function TradeTable({ trades, isLoading }: TradeTableProps) {
         <tbody>
           {trades.map((trade) => (
             <tr
-              key={trade.id}
-              onClick={() => router.push(`/trade/${trade.id}`)}
+              key={trade.href}
+              onClick={() => router.push(trade.href)}
               className="border-t border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)]/50 cursor-pointer transition-colors"
             >
               <td className="px-4 py-3 font-mono text-[var(--text-secondary)] sticky left-0 z-10 bg-[var(--bg-deep)] group-hover:bg-[var(--bg-elevated)]/50 transition-colors">
@@ -88,7 +88,7 @@ export default function TradeTable({ trades, isLoading }: TradeTableProps) {
                 <StateBadge state={trade.state} />
               </td>
               <td className="px-4 py-3 text-right text-xs text-[var(--text-secondary)] font-mono">
-                {trade.shipped_at > 0 ? formatRelativeTime(trade.shipped_at) : "--"}
+                {trade.createdAt > 0 ? formatRelativeTime(trade.createdAt) : "--"}
               </td>
             </tr>
           ))}

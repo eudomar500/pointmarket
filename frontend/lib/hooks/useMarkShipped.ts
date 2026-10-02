@@ -1,39 +1,31 @@
 "use client";
 
 import { useWriteWithTracking } from "@/lib/tx/useWriteWithTracking";
-import { getAddresses } from "@/lib/genlayer/contracts";
+import { markShipped as markShippedWrite } from "@/lib/genlayer/writes";
 
 /**
- * Wrapper hook for the marketplace mark_shipped write. The contract
- * enforces three preconditions: msg.sender must be the trade's seller,
- * the trade state must be PAID, and both tracking strings must match
- * the configured length bounds (tracking_number 4-100, carrier 1-50).
- * Bounds are duplicated client-side in the dialog so the user sees the
- * error before the transaction is sent and reverts.
+ * Escrow mark_shipped. Seller only, on a PAID trade, refused while paused.
+ * Tracking number 4 to 100 characters and carrier 1 to 50 (unchecked
+ * strings, as in v1.4.7); up to 3 carrier domains from the Escrow's list,
+ * which a Lacre delivery proof must later match; an optional packing photo
+ * CID, which can only be set here.
  */
 export function useMarkShipped() {
   const { execute, pending, error } = useWriteWithTracking();
 
-  const markShipped = async (
-    tradeId: number,
-    trackingNumber: string,
-    trackingCarrier: string,
-  ): Promise<string> => {
-    return execute({
+  const markShipped = async (args: {
+    tradeId: number;
+    trackingNumber: string;
+    trackingCarrier: string;
+    carrierDomains: string[];
+    packingMediaCid: string;
+  }): Promise<string> =>
+    execute({
       method: "mark_shipped",
-      context: `Trade #${tradeId}`,
-      write: async (client, network) => {
-        const { marketplace } = getAddresses(network);
-        const hash = await client.writeContract({
-          address: marketplace,
-          functionName: "mark_shipped",
-          args: [BigInt(tradeId), trackingNumber, trackingCarrier],
-          value: 0n,
-        });
-        return hash;
-      },
+      context: `Trade #${args.tradeId}`,
+      write: (client, network) =>
+        markShippedWrite(client, network, { ...args, tradeId: BigInt(args.tradeId) }),
     });
-  };
 
   return { markShipped, pending, error };
 }

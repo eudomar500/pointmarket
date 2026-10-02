@@ -11,7 +11,11 @@ import type { Address } from "@/lib/genlayer/types";
 interface ExecuteParams {
   method: TxMethod;
   context?: string;
-  write: (client: WriteClient, network: NetworkKey) => Promise<string>;
+  /**
+   * Builds and sends the transaction. `sender` is the connected address the
+   * client signs with; payable writes pass it to their pre-checks.
+   */
+  write: (client: WriteClient, network: NetworkKey, sender: Address) => Promise<string>;
 }
 
 export function useWriteWithTracking() {
@@ -32,9 +36,10 @@ export function useWriteWithTracking() {
     setError(null);
 
     try {
-      const client = createWriteClient(DEFAULT_NETWORK, address as Address);
-      const txHash = await write(client, DEFAULT_NETWORK);
-      
+      const sender = address as Address;
+      const client = createWriteClient(DEFAULT_NETWORK, sender);
+      const txHash = await write(client, DEFAULT_NETWORK, sender);
+
       addTx({
         txHash,
         method,
@@ -46,9 +51,10 @@ export function useWriteWithTracking() {
       });
 
       return txHash;
-    } catch (err: any) {
-      setError(err);
-      throw err;
+    } catch (err) {
+      const e = err instanceof Error ? err : new Error(String(err));
+      setError(e);
+      throw e;
     } finally {
       setPending(false);
     }

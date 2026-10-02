@@ -23,3 +23,5 @@ export function createWriteClient(network: NetworkKey, account: Address) {
 
 export type ReadClient = ReturnType<typeof createReadClient>;
 export type WriteClient = ReturnType<typeof createWriteClient>;
+/** Either client: reads only need readContract. */
+export type Reader = Pick<ReadClient, "readContract">;

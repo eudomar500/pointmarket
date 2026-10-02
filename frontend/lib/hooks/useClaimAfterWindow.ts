@@ -1,36 +1,23 @@
 "use client";
 
 import { useWriteWithTracking } from "@/lib/tx/useWriteWithTracking";
-import { getAddresses } from "@/lib/genlayer/contracts";
+import { claimAfterWindow as claimAfterWindowWrite } from "@/lib/genlayer/writes";
 
 /**
- * Wrapper hook for the marketplace claim_after_window write. Lets the
- * seller close a SHIPPED trade once the dispute window has elapsed
- * without the buyer either confirming delivery or opening a dispute.
- * The contract requires msg.sender to be the trade seller, the trade
- * state to be SHIPPED, and now >= shipped_at + DISPUTE_WINDOW. On
- * success, the escrow releases to the seller and the trade transitions
- * to COMPLETED. The payout is emitted at FINALIZED.
+ * Escrow claim_after_window. Seller only, on a SHIPPED trade, from
+ * claim_at: shipped_at + DISPUTE_WINDOW, or proof_at + PROOF_CLAIM_DELAY
+ * when an accepted delivery proof makes that earlier. Pays the seller the
+ * price minus the fee.
  */
 export function useClaimAfterWindow() {
   const { execute, pending, error } = useWriteWithTracking();
 
-  const claimAfterWindow = async (tradeId: number): Promise<string> => {
-    return execute({
+  const claimAfterWindow = async (tradeId: number): Promise<string> =>
+    execute({
       method: "claim_after_window",
       context: `Trade #${tradeId}`,
-      write: async (client, network) => {
-        const { marketplace } = getAddresses(network);
-        const hash = await client.writeContract({
-          address: marketplace,
-          functionName: "claim_after_window",
-          args: [BigInt(tradeId)],
-          value: 0n,
-        });
-        return hash;
-      },
+      write: (client, network) => claimAfterWindowWrite(client, network, BigInt(tradeId)),
     });
-  };
 
   return { claimAfterWindow, pending, error };
 }

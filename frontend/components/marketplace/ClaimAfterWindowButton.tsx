@@ -8,7 +8,6 @@ import { useCountdown, formatRemaining } from "@/lib/hooks/useCountdown";
 import { useWalletStore } from "@/lib/wallet/store";
 import { NETWORKS } from "@/config/networks";
 import { DEFAULT_NETWORK } from "@/lib/genlayer/contracts";
-import { getMarketplaceTimings } from "@/lib/genlayer/timings";
 import { formatGenBalance } from "@/lib/wallet/format";
 import type { TxMethod } from "@/lib/tx/types";
 
@@ -18,8 +17,10 @@ interface ClaimAfterWindowButtonProps {
   tradeId: number;
   seller: string;
   state: number;
-  shippedAt: number;
+  /** Escrow claim_at: shipped_at + DISPUTE_WINDOW, earlier with a delivery proof. */
+  claimAt: number;
   price: bigint;
+  feeAmount: bigint;
   title: string;
   disabled?: boolean;
   activeMethod?: string | null;
@@ -29,8 +30,9 @@ export default function ClaimAfterWindowButton({
   tradeId,
   seller,
   state,
-  shippedAt,
+  claimAt,
   price,
+  feeAmount,
   title,
   disabled,
   activeMethod,
@@ -41,9 +43,7 @@ export default function ClaimAfterWindowButton({
   const [submittedHash, setSubmittedHash] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const timings = getMarketplaceTimings(DEFAULT_NETWORK);
-  const unlockAt = shippedAt + timings.disputeWindowSeconds;
-  const { remainingSeconds, isReady } = useCountdown(unlockAt);
+  const { remainingSeconds, isReady } = useCountdown(claimAt);
 
   const connected = status === "connected" && address;
   const isSeller = connected && address.toLowerCase() === seller.toLowerCase();
@@ -146,7 +146,7 @@ export default function ClaimAfterWindowButton({
                 Releasing to you
               </div>
               <div className="text-2xl font-medium text-[var(--text-primary)] font-mono">
-                {formatGenBalance(price)}
+                {formatGenBalance(price - feeAmount)}
               </div>
             </div>
 

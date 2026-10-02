@@ -3,33 +3,33 @@
 import { useState } from "react";
 import { useRespondToDispute } from "@/lib/hooks/useRespondToDispute";
 import { useWalletStore } from "@/lib/wallet/store";
+import { useCountdown, formatRemaining } from "@/lib/hooks/useCountdown";
+import { sameAddress, sellerBond } from "@/lib/genlayer/escrow";
 import DisputeEvidenceDialog from "./DisputeEvidenceDialog";
 import type { TxMethod } from "@/lib/tx/types";
-
-const DISPUTE_BOND_BPS = 500n;
-const BPS_DENOMINATOR = 10000n;
-const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 const METHOD: TxMethod = "respond_to_dispute";
 
 interface RespondToDisputeButtonProps {
   tradeId: number;
-  buyer: string;
   seller: string;
   state: number;
-  disputeInitiator: string;
+  responded: boolean;
+  /** Escrow response_until: disputed_at + DISPUTE_RESPONSE_WINDOW. */
+  responseUntil: number;
   price: bigint;
   title: string;
   disabled?: boolean;
   activeMethod?: string | null;
 }
 
+/** v1.5: the seller answers once, before response_until, with a 5% bond. */
 export default function RespondToDisputeButton({
   tradeId,
-  buyer,
   seller,
   state,
-  disputeInitiator,
+  responded,
+  responseUntil,
   price,
   title,
   disabled,
@@ -38,31 +38,21 @@ export default function RespondToDisputeButton({
   const { address, status } = useWalletStore();
   const { respondToDispute } = useRespondToDispute();
   const [open, setOpen] = useState(false);
+  const { remainingSeconds, isReady: windowClosed } = useCountdown(responseUntil, 0);
 
   const connected = status === "connected" && address;
-  const isBuyer = connected && address.toLowerCase() === buyer.toLowerCase();
-  const isSeller = connected && address.toLowerCase() === seller.toLowerCase();
-  const isParty = isBuyer || isSeller;
+  const isSeller = connected && sameAddress(address, seller);
   const isDisputed = state === 3;
-  const initiatorSet =
-    disputeInitiator && disputeInitiator.toLowerCase() !== ZERO_ADDRESS;
-  const isInitiator =
-    connected &&
-    initiatorSet &&
-    address.toLowerCase() === disputeInitiator.toLowerCase();
 
-  if (!isParty || !isDisputed || !initiatorSet || isInitiator) {
+  if (!isSeller || !isDisputed || responded || windowClosed) {
     return null;
   }
 
-  const bond = (price * DISPUTE_BOND_BPS) / BPS_DENOMINATOR;
-
-  const buttonLabel = (() => {
-    if (disabled && activeMethod === METHOD) {
-      return "Processing...";
-    }
-    return "Respond to dispute";
-  })();
+  const bond = sellerBond(price);
+  const buttonLabel =
+    disabled && activeMethod === METHOD
+      ? "Processing..."
+      : `Respond to dispute (${formatRemaining(remainingSeconds)} left)`;
 
   return (
     <div>
@@ -81,7 +71,7 @@ export default function RespondToDisputeButton({
           price={price}
           bond={bond}
           onClose={() => setOpen(false)}
-          onSubmit={(evidence) => respondToDispute(tradeId, evidence, bond)}
+          onSubmit={({ statement, cid }) => respondToDispute({ tradeId, statement, cid })}
         />
       ) : null}
     </div>

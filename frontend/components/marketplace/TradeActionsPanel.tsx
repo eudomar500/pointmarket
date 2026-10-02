@@ -2,6 +2,7 @@
 import { useMemo } from "react";
 import { useWalletStore } from "@/lib/wallet/store";
 import { useTxStore } from "@/lib/tx/store";
+import { defaultJudgmentBlocked, sameAddress } from "@/lib/genlayer/escrow";
 import CancelListingButton from "./CancelListingButton";
 import AcceptListingButton from "./AcceptListingButton";
 import MarkShippedDialog from "./MarkShippedDialog";
@@ -13,10 +14,11 @@ import RespondToDisputeButton from "./RespondToDisputeButton";
 import ClaimDisputeDefaultButton from "./ClaimDisputeDefaultButton";
 import ForceRefundStuckDisputeButton from "./ForceRefundStuckDisputeButton";
 import ClaimStuckDisputeRefundButton from "./ClaimStuckDisputeRefundButton";
-import type { TradeDetail } from "@/lib/hooks/useTrade";
+import SetUnboxingMediaButton, { unboxingDeadline } from "./SetUnboxingMediaButton";
+import type { EscrowTrade } from "@/lib/genlayer/types";
 
 interface TradeActionsPanelProps {
-  trade: TradeDetail;
+  trade: EscrowTrade;
 }
 
 /**
@@ -31,6 +33,9 @@ interface TradeActionsPanelProps {
  * state. The on-chain state has not changed yet during the Finality
  * Window, so without this guard a user could double-submit the same
  * action and burn gas on a transaction that will revert.
+ *
+ * Resolve is not here: anyone may press it, so it lives in the dispute
+ * block for every visitor.
  */
 export default function TradeActionsPanel({ trade }: TradeActionsPanelProps) {
   const { address, status } = useWalletStore();
@@ -55,34 +60,19 @@ export default function TradeActionsPanel({ trade }: TradeActionsPanelProps) {
   const connected = status === "connected" && address;
   if (!connected) return null;
 
-  const isSeller = address.toLowerCase() === trade.seller.toLowerCase();
-  const isBuyer = address.toLowerCase() === trade.buyer.toLowerCase();
+  const isSeller = sameAddress(address, trade.seller);
+  const isBuyer = sameAddress(address, trade.buyer) && !isSeller;
   const isOpen = trade.state === 0;
   const isPaid = trade.state === 1;
   const isShipped = trade.state === 2;
-
   const isDisputed = trade.state === 3;
 
-  const canCancel = isSeller && isOpen;
-  const canAccept = !isSeller && isOpen;
-  const canShip = isSeller && isPaid;
-  const canConfirm = isBuyer && isShipped;
-  const canClaimAfterWindow = isSeller && isShipped;
-  const canClaimUnshippedRefund = isBuyer && isPaid;
-  const canOpenDispute = (isBuyer || isSeller) && isShipped;
-  const canRespondOrClaimDispute = (isBuyer || isSeller) && isDisputed;
-  const canPublicRefund = isDisputed;
-
   const hasAnyAction =
-    canCancel ||
-    canAccept ||
-    canShip ||
-    canConfirm ||
-    canClaimAfterWindow ||
-    canClaimUnshippedRefund ||
-    canOpenDispute ||
-    canRespondOrClaimDispute ||
-    canPublicRefund;
+    (isSeller && (isOpen || isPaid || isShipped)) ||
+    (!isSeller && isOpen) ||
+    (isBuyer && (isPaid || isShipped)) ||
+    (isBuyer && unboxingDeadline(trade) > 0) ||
+    isDisputed;
   if (!hasAnyAction) return null;
 
   return (
@@ -120,8 +110,9 @@ export default function TradeActionsPanel({ trade }: TradeActionsPanelProps) {
           tradeId={trade.id}
           seller={trade.seller}
           state={trade.state}
-          shippedAt={trade.shipped_at}
+          claimAt={trade.claimAt}
           price={trade.price}
+          feeAmount={trade.feeAmount}
           title={trade.title}
           disabled={hasActiveTx}
           activeMethod={activeMethod}
@@ -130,7 +121,7 @@ export default function TradeActionsPanel({ trade }: TradeActionsPanelProps) {
           tradeId={trade.id}
           buyer={trade.buyer}
           state={trade.state}
-          paidAt={trade.paid_at}
+          paidAt={trade.paidAt}
           price={trade.price}
           title={trade.title}
           disabled={hasActiveTx}
@@ -139,20 +130,20 @@ export default function TradeActionsPanel({ trade }: TradeActionsPanelProps) {
         <OpenDisputeButton
           tradeId={trade.id}
           buyer={trade.buyer}
-          seller={trade.seller}
           state={trade.state}
-          shippedAt={trade.shipped_at}
+          claimAt={trade.claimAt}
           price={trade.price}
           title={trade.title}
           disabled={hasActiveTx}
           activeMethod={activeMethod}
         />
+        <SetUnboxingMediaButton trade={trade} disabled={hasActiveTx} activeMethod={activeMethod} />
         <RespondToDisputeButton
           tradeId={trade.id}
-          buyer={trade.buyer}
           seller={trade.seller}
           state={trade.state}
-          disputeInitiator={trade.dispute_initiator}
+          responded={trade.responded}
+          responseUntil={trade.responseUntil}
           price={trade.price}
           title={trade.title}
           disabled={hasActiveTx}
@@ -162,8 +153,10 @@ export default function TradeActionsPanel({ trade }: TradeActionsPanelProps) {
           tradeId={trade.id}
           buyer={trade.buyer}
           state={trade.state}
-          disputeInitiator={trade.dispute_initiator}
-          disputedAt={trade.disputed_at}
+          responded={trade.responded}
+          responseUntil={trade.responseUntil}
+          buyerBond={trade.buyerBond}
+          burdenBlocked={defaultJudgmentBlocked(trade)}
           price={trade.price}
           title={trade.title}
           disabled={hasActiveTx}
@@ -172,7 +165,7 @@ export default function TradeActionsPanel({ trade }: TradeActionsPanelProps) {
         <ForceRefundStuckDisputeButton
           tradeId={trade.id}
           state={trade.state}
-          disputedAt={trade.disputed_at}
+          disputedAt={trade.disputedAt}
           price={trade.price}
           title={trade.title}
           disabled={hasActiveTx}
@@ -181,7 +174,7 @@ export default function TradeActionsPanel({ trade }: TradeActionsPanelProps) {
         <ClaimStuckDisputeRefundButton
           tradeId={trade.id}
           state={trade.state}
-          disputedAt={trade.disputed_at}
+          disputedAt={trade.disputedAt}
           price={trade.price}
           title={trade.title}
           disabled={hasActiveTx}

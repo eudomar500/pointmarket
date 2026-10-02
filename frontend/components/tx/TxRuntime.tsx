@@ -34,8 +34,11 @@ const METHOD_PAST_LABELS: Record<TxMethod, string> = {
   confirm_delivery: "Delivery confirmed",
   claim_after_window: "Claimed after window",
   claim_unshipped_refund: "Unshipped refund claimed",
+  set_unboxing_media: "Unboxing photo added",
   open_dispute: "Dispute opened",
   respond_to_dispute: "Dispute response submitted",
+  resolve: "Dispute resolved",
+  submit_delivery_proof: "Delivery proof submitted",
   claim_dispute_default: "Dispute default claimed",
   force_refund_stuck_dispute: "Stuck dispute force-refunded",
   claim_stuck_dispute_refund: "Stuck dispute refund claimed",
@@ -45,12 +48,11 @@ const METHOD_PAST_LABELS: Record<TxMethod, string> = {
   resolve_market: "Market resolved",
   claim_winnings: "Winnings claimed",
   refund_bet: "Bet refunded",
-  pause_marketplace: "Marketplace paused",
-  unpause_marketplace: "Marketplace unpaused",
+  pause_escrow: "Escrow paused",
+  unpause_escrow: "Escrow unpaused",
   pause_prediction_market: "Prediction market paused",
   unpause_prediction_market: "Prediction market unpaused",
   withdraw_fees: "Fees withdrawn",
-  withdraw_external_fees: "External fees withdrawn",
 };
 
 export default function TxRuntime() {
@@ -79,12 +81,12 @@ export default function TxRuntime() {
       const isTerminal = tx.uiState === "finalized" || tx.uiState === "failed";
       const wasTerminal = last === "finalized" || last === "failed";
       if (isTerminal && !wasTerminal && last !== undefined) {
-        const label = METHOD_PAST_LABELS[tx.method];
-        const description = tx.context ?? undefined;
+        const label = METHOD_PAST_LABELS[tx.method] ?? tx.method;
         if (tx.uiState === "finalized") {
-          toast.success(label, { description });
+          toast.success(label, { description: tx.context ?? undefined });
         } else {
-          toast.error(`${label} (failed)`, { description });
+          const description = [tx.context, tx.failureReason].filter(Boolean).join(". ");
+          toast.error(`${label} (failed)`, { description: description || undefined });
         }
       }
       prev.set(tx.txHash, tx.uiState);

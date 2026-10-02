@@ -1,47 +1,29 @@
 "use client";
 
 import { useWriteWithTracking } from "@/lib/tx/useWriteWithTracking";
-import { getAddresses } from "@/lib/genlayer/contracts";
+import { respondToDispute as respondToDisputeWrite } from "@/lib/genlayer/writes";
 
 /**
- * Wrapper hook for the marketplace respond_to_dispute write. Lets the
- * non-initiator party submit their counter-evidence and bond. The
- * contract requires:
- *   - trade state is DISPUTED.
- *   - msg.sender is not the dispute_initiator.
- *   - msg.sender is the buyer or the seller.
- *   - msg.value >= the same bond as open_dispute (5% of price).
- *   - evidence length is 1 to 4000 characters.
- * On success the sender's evidence and bond are recorded, and the
- * contract immediately invokes the LLM arbitration via Optimistic
- * Democracy. The LLM evaluates both evidences and returns a verdict
- * which the contract uses to release funds and bonds accordingly.
- * The verdict reasoning ends up in summary.llm_verdict_reasoning once
- * the underlying transaction reaches consensus.
+ * Escrow respond_to_dispute, payable. Seller only, on a DISPUTED trade not
+ * yet answered, before response_until, value exactly price * 5%. It records
+ * the statement, the optional response photo and the bond; it does not
+ * resolve anything. The verdict comes from Arbiter.resolve, which anyone
+ * can call once this response is final. Pre-checked before signing.
  */
 export function useRespondToDispute() {
   const { execute, pending, error } = useWriteWithTracking();
 
-  const respondToDispute = async (
-    tradeId: number,
-    evidence: string,
-    bond: bigint,
-  ): Promise<string> => {
-    return execute({
+  const respondToDispute = async (args: {
+    tradeId: number;
+    statement: string;
+    cid: string;
+  }): Promise<string> =>
+    execute({
       method: "respond_to_dispute",
-      context: `Trade #${tradeId}`,
-      write: async (client, network) => {
-        const { marketplace } = getAddresses(network);
-        const hash = await client.writeContract({
-          address: marketplace,
-          functionName: "respond_to_dispute",
-          args: [BigInt(tradeId), evidence],
-          value: bond,
-        });
-        return hash;
-      },
+      context: `Trade #${args.tradeId}`,
+      write: (client, network, sender) =>
+        respondToDisputeWrite(client, network, { ...args, tradeId: BigInt(args.tradeId), sender }),
     });
-  };
 
   return { respondToDispute, pending, error };
 }

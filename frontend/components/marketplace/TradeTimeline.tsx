@@ -1,43 +1,46 @@
 "use client";
 
-import { CheckCircle, Circle, AlertTriangle, XCircle } from "lucide-react";
+import { CheckCircle, AlertTriangle, XCircle } from "lucide-react";
 import { TradeState } from "@/lib/genlayer/types";
 import { truncateAddress } from "@/lib/wallet/format";
 
-interface TradeTimelineProps {
-  trade: {
-    state: number;
-    seller: string;
-    buyer: string;
-    shipped_at: number;
-    disputed: boolean;
-    disputed_at?: number;
-    dispute_initiator?: string;
-    resolved_by_default?: boolean;
-    llm_verdict_buyer_wins?: boolean;
-    llm_verdict_reasoning?: string;
-  };
+/**
+ * The fields the timeline needs, shared by v1.5 trades and read-only
+ * legacy trades. `verdictTitle` names who decided a dispute that paid out
+ * ("Arbiter", or the legacy in-contract verdict); `verdictDetail` is shown
+ * under it.
+ */
+export interface TimelineTrade {
+  state: number;
+  seller: string;
+  buyer: string;
+  wasDisputed: boolean;
+  resolvedByDefault: boolean;
+  buyerWins: boolean;
+  deliveryProof?: boolean;
+  verdictTitle?: string;
+  verdictDetail?: string;
 }
 
-export default function TradeTimeline({ trade }: TradeTimelineProps) {
+export default function TradeTimeline({ trade }: { trade: TimelineTrade }) {
   const steps = buildSteps(trade);
-  
+
   return (
     <div className="relative">
       {steps.map((step, idx) => (
         <div key={idx} className="relative flex gap-4 pb-6 last:pb-0">
           {/* Vertical line connecting nodes */}
           {idx < steps.length - 1 && (
-            <div 
+            <div
               className={`absolute left-3 top-7 w-px h-full ${step.reached ? "bg-[var(--accent-primary)]/50" : "bg-[var(--border-subtle)]"}`}
             />
           )}
-          
+
           {/* Node icon */}
           <div className="relative z-10 flex-shrink-0">
             {step.icon}
           </div>
-          
+
           {/* Step content */}
           <div className="flex-1 pb-2">
             <div className={`text-sm font-medium ${step.reached ? "text-[var(--text-primary)]" : "text-[var(--text-secondary)]"}`}>
@@ -55,27 +58,27 @@ export default function TradeTimeline({ trade }: TradeTimelineProps) {
   );
 }
 
-function buildSteps(trade: TradeTimelineProps["trade"]) {
+function buildSteps(trade: TimelineTrade) {
   const reached = (minState: number) => trade.state >= minState && trade.state !== TradeState.CANCELLED && trade.state !== TradeState.REFUNDED;
   const isCancelled = trade.state === TradeState.CANCELLED;
   const isRefunded = trade.state === TradeState.REFUNDED;
-  
+
   const filledIcon = (
     <div className="w-6 h-6 rounded-full bg-[var(--accent-primary)] flex items-center justify-center">
       <CheckCircle size={14} className="text-[var(--bg-deep)]" />
     </div>
   );
-  
+
   const emptyIcon = (
     <div className="w-6 h-6 rounded-full border-2 border-[var(--border-subtle)]" />
   );
-  
+
   const warningIcon = (
     <div className="w-6 h-6 rounded-full bg-[var(--warning)] flex items-center justify-center">
       <AlertTriangle size={14} className="text-[var(--bg-deep)]" />
     </div>
   );
-  
+
   const cancelIcon = (
     <div className="w-6 h-6 rounded-full bg-[var(--text-tertiary)] flex items-center justify-center">
       <XCircle size={14} className="text-[var(--bg-deep)]" />
@@ -83,11 +86,29 @@ function buildSteps(trade: TradeTimelineProps["trade"]) {
   );
 
   const skippedIcon = cancelIcon;
-  
+
+  if (isCancelled) {
+    return [
+      {
+        title: "Listing created",
+        detail: `By ${truncateAddress(trade.seller)}`,
+        reached: true,
+        icon: filledIcon,
+      },
+      {
+        title: "Listing cancelled",
+        detail: "Seller cancelled before any buyer accepted",
+        reached: true,
+        icon: cancelIcon,
+      },
+    ];
+  }
+
   const isCompleted = trade.state === TradeState.COMPLETED;
-  const isStuckDispute = isRefunded && trade.disputed;
-  const isUnshippedRefund = isRefunded && !trade.disputed;
-  const isDisputedPayout = isCompleted && trade.disputed;
+  const isStuckDispute = isRefunded && trade.wasDisputed;
+  const isUnshippedRefund = isRefunded && !trade.wasDisputed;
+  const isDisputedPayout = isCompleted && trade.wasDisputed;
+  const hasBuyer = Boolean(trade.buyer) && trade.buyer.toLowerCase() !== trade.seller.toLowerCase();
 
   const steps = [
     {
@@ -98,8 +119,8 @@ function buildSteps(trade: TradeTimelineProps["trade"]) {
     },
     {
       title: "Listing accepted",
-      detail: (reached(TradeState.PAID) || isRefunded) && trade.buyer && trade.buyer !== trade.seller 
-        ? `By ${truncateAddress(trade.buyer)}` 
+      detail: (reached(TradeState.PAID) || isRefunded) && hasBuyer
+        ? `By ${truncateAddress(trade.buyer)}`
         : undefined,
       reached: reached(TradeState.PAID) || isRefunded,
       icon: (reached(TradeState.PAID) || isRefunded) ? filledIcon : emptyIcon,
@@ -108,32 +129,21 @@ function buildSteps(trade: TradeTimelineProps["trade"]) {
       title: "Shipped",
       // A stuck dispute is only reachable from DISPUTED, so the item was shipped.
       detail: reached(TradeState.SHIPPED) || isStuckDispute
-        ? `Tracking provided by seller` 
+        ? trade.deliveryProof
+          ? "Tracking provided by seller; delivery proof accepted"
+          : "Tracking provided by seller"
         : (isUnshippedRefund ? "Not shipped within window" : undefined),
       reached: reached(TradeState.SHIPPED) || isRefunded,
       icon: reached(TradeState.SHIPPED) || isStuckDispute
-        ? filledIcon 
+        ? filledIcon
         : (isUnshippedRefund ? skippedIcon : emptyIcon),
     },
   ];
-  
-  // Dispute lifecycle steps
-  const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
-  const initiatorSet =
-    trade.dispute_initiator &&
-    trade.dispute_initiator.toLowerCase() !== ZERO_ADDRESS;
-  const initiatorIsBuyer =
-    initiatorSet && trade.dispute_initiator!.toLowerCase() === trade.buyer.toLowerCase();
-  const initiatorLabel = initiatorIsBuyer ? "buyer" : "seller";
-  const isDisputeActive = trade.state === TradeState.DISPUTED;
 
-  if (trade.disputed || isDisputeActive) {
-    const detail = initiatorSet
-      ? `Initiated by ${initiatorLabel}`
-      : "Awaiting LLM resolution";
+  if (trade.wasDisputed || trade.state === TradeState.DISPUTED) {
     steps.push({
       title: "Dispute opened",
-      detail,
+      detail: trade.state === TradeState.DISPUTED ? "Awaiting response or resolve" : undefined,
       reached: true,
       icon: warningIcon,
     });
@@ -142,12 +152,13 @@ function buildSteps(trade: TradeTimelineProps["trade"]) {
   // How the dispute was settled. It comes before the payout step so the cause of
   // the outcome is never shown after the outcome itself.
   if (isDisputedPayout) {
-    const resolvedByDefault = Boolean(trade.resolved_by_default);
     steps.push({
-      title: resolvedByDefault ? "Dispute resolved by default" : "Dispute resolved by LLM",
-      detail: resolvedByDefault
-        ? "Other party did not respond within the window"
-        : trade.llm_verdict_reasoning || undefined,
+      title: trade.resolvedByDefault
+        ? "Dispute resolved by default"
+        : `Dispute resolved by ${trade.verdictTitle ?? "the Arbiter"}`,
+      detail: trade.resolvedByDefault
+        ? "Seller did not respond within the window"
+        : trade.verdictDetail,
       reached: true,
       icon: filledIcon,
     });
@@ -160,7 +171,7 @@ function buildSteps(trade: TradeTimelineProps["trade"]) {
   let outcomeIcon = emptyIcon;
   if (isDisputedPayout) {
     outcomeTitle = "Paid out";
-    outcomeDetail = trade.llm_verdict_buyer_wins
+    outcomeDetail = trade.buyerWins
       ? "Funds returned to buyer"
       : "Funds released to seller";
     outcomeIcon = filledIcon;
@@ -180,23 +191,6 @@ function buildSteps(trade: TradeTimelineProps["trade"]) {
     reached: isCompleted || isStuckDispute,
     icon: outcomeIcon,
   });
-  
-  if (isCancelled) {
-    return [
-      {
-        title: "Listing created",
-        detail: `By ${truncateAddress(trade.seller)}`,
-        reached: true,
-        icon: filledIcon,
-      },
-      {
-        title: "Listing cancelled",
-        detail: "Seller cancelled before any buyer accepted",
-        reached: true,
-        icon: cancelIcon,
-      },
-    ];
-  }
 
   if (isUnshippedRefund) {
     // Buyer claimed a refund because the seller never shipped.
@@ -207,6 +201,6 @@ function buildSteps(trade: TradeTimelineProps["trade"]) {
       icon: filledIcon,
     });
   }
-  
+
   return steps;
 }

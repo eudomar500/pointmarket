@@ -1,34 +1,25 @@
 "use client";
 
 import { useWriteWithTracking } from "@/lib/tx/useWriteWithTracking";
-import { getAddresses } from "@/lib/genlayer/contracts";
+import { acceptListing as acceptListingWrite } from "@/lib/genlayer/writes";
 
 /**
- * Wrapper hook for the marketplace accept_listing write. The contract
- * is payable and enforces three preconditions on chain: trade must be
- * LISTING_OPEN, msg.value must exactly match trade.price, and the
- * sender must not be the seller. The price argument here is the exact
- * BigInt amount the contract expects in wei-equivalent (1 GEN = 1e18).
+ * Escrow accept_listing, payable. The contract requires LISTING_OPEN, a
+ * sender other than the seller, an unpaused Escrow and a value equal to
+ * the price. A revert on Bradbury keeps the value, so the write reads the
+ * trade again right before signing and refuses (nothing is sent) unless
+ * all of that holds and the price on chain equals the price shown.
  */
 export function useAcceptListing() {
   const { execute, pending, error } = useWriteWithTracking();
 
-  const acceptListing = async (tradeId: number, price: bigint): Promise<string> => {
-    return execute({
+  const acceptListing = async (tradeId: number, expectedPrice: bigint): Promise<string> =>
+    execute({
       method: "accept_listing",
       context: `Trade #${tradeId}`,
-      write: async (client, network) => {
-        const { marketplace } = getAddresses(network);
-        const hash = await client.writeContract({
-          address: marketplace,
-          functionName: "accept_listing",
-          args: [BigInt(tradeId)],
-          value: price,
-        });
-        return hash;
-      },
+      write: (client, network, sender) =>
+        acceptListingWrite(client, network, { tradeId: BigInt(tradeId), sender, expectedPrice }),
     });
-  };
 
   return { acceptListing, pending, error };
 }

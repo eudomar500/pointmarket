@@ -24,8 +24,11 @@ const METHOD_LABELS: Record<TxMethod, string> = {
   confirm_delivery: "Confirm delivery",
   claim_after_window: "Claim after dispute window",
   claim_unshipped_refund: "Claim unshipped refund",
+  set_unboxing_media: "Add unboxing photo",
   open_dispute: "Open dispute",
   respond_to_dispute: "Respond to dispute",
+  resolve: "Resolve dispute",
+  submit_delivery_proof: "Submit delivery proof",
   claim_dispute_default: "Claim dispute default",
   force_refund_stuck_dispute: "Force refund stuck dispute",
   claim_stuck_dispute_refund: "Claim stuck dispute refund",
@@ -35,12 +38,11 @@ const METHOD_LABELS: Record<TxMethod, string> = {
   resolve_market: "Resolve market",
   claim_winnings: "Claim winnings",
   refund_bet: "Refund bet",
-  pause_marketplace: "Pause marketplace",
-  unpause_marketplace: "Unpause marketplace",
+  pause_escrow: "Pause escrow",
+  unpause_escrow: "Unpause escrow",
   pause_prediction_market: "Pause prediction market",
   unpause_prediction_market: "Unpause prediction market",
   withdraw_fees: "Withdraw fees",
-  withdraw_external_fees: "Withdraw external fees",
 };
 
 function formatElapsed(submittedAt: number): string {
@@ -64,7 +66,8 @@ interface TxItemProps {
 export default function TxItem({ tx }: TxItemProps) {
   const explorer = NETWORKS[DEFAULT_NETWORK].explorerUrl;
   const explorerUrl = explorer ? `${explorer}/tx/${tx.txHash}` : null;
-  const label = METHOD_LABELS[tx.method];
+  // Entries persisted by an older build may carry a method no longer listed.
+  const label = METHOD_LABELS[tx.method] ?? tx.method;
 
   return (
     <div className="flex flex-col gap-2 px-4 py-3">
@@ -107,7 +110,7 @@ export default function TxItem({ tx }: TxItemProps) {
           style={{ color: "#ef4444" }}
         >
           <XCircle size={14} aria-hidden />
-          <span>Transaction failed ({tx.rawStatus})</span>
+          <span>{tx.failureReason ?? `Transaction failed (${tx.rawStatus})`}</span>
         </div>
       ) : (
         <TxProgressBar uiState={tx.uiState} />

@@ -6,12 +6,12 @@ import { fetchGenBalance } from "../wallet/balance";
 import { createReadClient } from "../genlayer/client";
 import {
   getNextTradeId,
-  getTradeSummary,
+  getTrade,
   getNextMarketId,
   getUserBet,
   getUserReputation,
 } from "../genlayer/reads";
-import type { Address } from "../genlayer/types";
+import { TRADE_STATE_LABELS, type Address, type TradeStateValue } from "../genlayer/types";
 
 export type ProfileStats = {
   balance: bigint;
@@ -57,7 +57,7 @@ export function useProfileStats(address: string) {
       const correct = Number(reputation.correct_predictions);
       const reputationScore = total > 0 ? (correct / total) * 100 : 0;
 
-      // 3. Marketplace Stats
+      // 3. Marketplace stats, over the v1.5 Escrow's trades.
       // TODO: replace with indexer in Phase 7
       const nextTradeId = await getNextTradeId(client, DEFAULT_NETWORK);
       let tradesAsSeller = 0;
@@ -70,9 +70,11 @@ export function useProfileStats(address: string) {
 
       for (let i = 0; i < Number(nextTradeId); i++) {
         try {
-          const trade = await getTradeSummary(client, DEFAULT_NETWORK, i);
+          const trade = await getTrade(client, DEFAULT_NETWORK, i);
           const isSeller = trade.seller.toLowerCase() === address.toLowerCase();
-          const isBuyer = trade.buyer.toLowerCase() === address.toLowerCase();
+          // An unaccepted listing stores the seller as buyer.
+          const isBuyer =
+            trade.buyer.toLowerCase() === address.toLowerCase() && !isSeller;
 
           if (isSeller || isBuyer) {
             if (isSeller) tradesAsSeller++;
@@ -80,9 +82,9 @@ export function useProfileStats(address: string) {
 
             if (trade.state === 4) {
               completedTrades++;
-              totalVolume += BigInt(trade.price);
+              totalVolume += trade.price;
             }
-            if (trade.state === 3 || trade.disputed) {
+            if (trade.state === 3 || trade.wasDisputed) {
               disputedTrades++;
             }
 
@@ -90,11 +92,11 @@ export function useProfileStats(address: string) {
             recentActivity.push({
               id: `T-${i}`,
               type: "Trade" as const,
-              status: ["Created", "Committed", "Appealed", "Disputed", "Completed", "Canceled"][trade.state] || "Unknown",
-              timestamp: new Date(Number(trade.created_at) * 1000),
+              status: TRADE_STATE_LABELS[trade.state as TradeStateValue] ?? "Unknown",
+              timestamp: new Date(trade.createdAt * 1000),
             });
           }
-        } catch (e) {
+        } catch {
           // Ignore failed reads for individual trades
         }
       }
@@ -116,7 +118,7 @@ export function useProfileStats(address: string) {
               timestamp: new Date(), // We don't have bet timestamp from contract, using current
             });
           }
-        } catch (e) {
+        } catch {
           // Ignore failed reads
         }
       }

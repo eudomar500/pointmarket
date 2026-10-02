@@ -1,24 +1,29 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { useAllTrades } from "@/lib/hooks/useAllTrades";
-import { useMarketplaceMetrics } from "@/lib/hooks/useMarketplaceMetrics";
-import { formatGenBalance } from "@/lib/wallet/format";
+import { useState, useMemo, type ReactNode } from "react";
+import { useAllTrades, useLegacyTrades } from "@/lib/hooks/useAllTrades";
+import { DEFAULT_NETWORK, legacyMarketplaces } from "@/lib/genlayer/contracts";
 import TradeTable from "@/components/marketplace/TradeTable";
 import TradeFilters from "@/components/marketplace/TradeFilters";
 
 import CreateListingButton from "@/components/marketplace/CreateListingButton";
 
 const PAGE_SIZE = 25;
+const CURRENT = "current";
 
 export default function MarketplacePage() {
-  const { data: trades = [], isLoading } = useAllTrades();
-  const { data: metrics } = useMarketplaceMetrics();
-  
+  const legacySources = legacyMarketplaces(DEFAULT_NETWORK);
+  const [view, setView] = useState<string>(CURRENT);
+  const legacySource = legacySources.find((s) => s.key === view);
+
+  const current = useAllTrades();
+  const legacy = useLegacyTrades(legacySource);
+  const { data: trades = [], isLoading } = legacySource ? legacy : current;
+
   const [search, setSearch] = useState("");
   const [stateFilter, setStateFilter] = useState<number | null>(null);
   const [page, setPage] = useState(0);
-  
+
   const filtered = useMemo(() => {
     return trades.filter((trade) => {
       if (stateFilter !== null && trade.state !== stateFilter) return false;
@@ -26,10 +31,15 @@ export default function MarketplacePage() {
       return true;
     });
   }, [trades, search, stateFilter]);
-  
+
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-  
+
+  const selectView = (next: string) => {
+    setView(next);
+    setPage(0);
+  };
+
   return (
     <main className="pt-24 pb-16 px-6 md:px-12 max-w-7xl mx-auto">
       <header className="mb-10 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
@@ -38,22 +48,27 @@ export default function MarketplacePage() {
             Marketplace
           </h1>
           <p className="text-[var(--text-secondary)] max-w-2xl">
-            Trustless P2P trades on GenLayer. All trades settle on-chain with optional LLM-arbitrated disputes.
+            Trustless P2P trades on GenLayer. Funds sit in escrow on-chain; disputes are settled by burden rules and a validator jury that checks anchored photos.
           </p>
         </div>
         <div className="flex-shrink-0">
           <CreateListingButton />
         </div>
       </header>
-      
-      {/* Stats row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-10">
-        <StatCard label="Total trades" value={metrics?.totalTradesCreated?.toString() ?? "--"} />
-        <StatCard label="Completed" value={metrics?.completedCount?.toString() ?? "--"} />
-        <StatCard label="Disputed" value={metrics?.disputedCount?.toString() ?? "--"} />
-        <StatCard label="Total volume" value={metrics?.totalVolume !== undefined ? `${formatGenBalance(metrics.totalVolume)}` : "--"} />
-      </div>
-      
+
+      {legacySources.length > 0 ? (
+        <div className="mb-6 flex flex-wrap items-center gap-2 text-sm">
+          <ViewTab active={view === CURRENT} onClick={() => selectView(CURRENT)}>
+            Current trades
+          </ViewTab>
+          {legacySources.map((source) => (
+            <ViewTab key={source.key} active={view === source.key} onClick={() => selectView(source.key)}>
+              {source.label} (read only)
+            </ViewTab>
+          ))}
+        </div>
+      ) : null}
+
       <TradeFilters
         search={search}
         onSearchChange={(v) => { setSearch(v); setPage(0); }}
@@ -64,21 +79,28 @@ export default function MarketplacePage() {
         onPageChange={setPage}
         resultsCount={filtered.length}
       />
-      
+
       <TradeTable trades={paginated} isLoading={isLoading} />
     </main>
   );
 }
 
-function StatCard({ label, value }: { label: string; value: string }) {
+function ViewTab({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
   return (
-    <div className="p-4 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-subtle)]">
-      <div className="text-xs uppercase tracking-wider text-[var(--text-secondary)] mb-2">
-        {label}
-      </div>
-      <div className="text-2xl font-medium text-[var(--text-primary)] font-mono">
-        {value}
-      </div>
-    </div>
+    <button
+      type="button"
+      onClick={onClick}
+      className={`px-3 py-1.5 rounded-lg border transition-colors ${active ? "border-[var(--accent-primary)] text-[var(--text-primary)] bg-[var(--bg-elevated)]" : "border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+    >
+      {children}
+    </button>
   );
 }

@@ -49,8 +49,11 @@ export type TxMethod =
   | "confirm_delivery"
   | "claim_after_window"
   | "claim_unshipped_refund"
+  | "set_unboxing_media"
   | "open_dispute"
   | "respond_to_dispute"
+  | "resolve"
+  | "submit_delivery_proof"
   | "claim_dispute_default"
   | "force_refund_stuck_dispute"
   | "claim_stuck_dispute_refund"
@@ -60,17 +63,20 @@ export type TxMethod =
   | "resolve_market"
   | "claim_winnings"
   | "refund_bet"
-  | "pause_marketplace"
-  | "unpause_marketplace"
+  | "pause_escrow"
+  | "unpause_escrow"
   | "pause_prediction_market"
   | "unpause_prediction_market"
-  | "withdraw_fees"
-  | "withdraw_external_fees";
+  | "withdraw_fees";
 
 /**
  * One transaction tracked in the drawer. Persisted to localStorage by
  * the Zustand store. The `txHash` is the unique identifier; submittedAt
  * powers the TTL cleanup (2h).
+ *
+ * resultName and executionName are the receipt's consensus result and
+ * execution result (see lib/tx/outcome.ts). failureReason explains a
+ * `failed` state; retryable marks a failure that recorded nothing.
  */
 export interface PendingTx {
   txHash: string;
@@ -80,6 +86,12 @@ export interface PendingTx {
   submittedAt: number;
   lastPolledAt: number;
   context?: string;
+  resultName?: string;
+  executionName?: string;
+  failureReason?: string;
+  retryable?: boolean;
+  /** When the poller first saw a terminal state (ms). */
+  decidedAt?: number;
 }
 
 /**

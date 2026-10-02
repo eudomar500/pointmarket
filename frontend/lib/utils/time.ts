@@ -11,9 +11,20 @@ export function formatRelativeTime(unixSeconds: number): string {
   if (diff < 2592000) return `${Math.floor(diff / 604800)}w ago`;
   
   const date = new Date(unixSeconds * 1000);
-  return date.toLocaleDateString(undefined, { 
-    year: "numeric", 
-    month: "short", 
-    day: "numeric" 
+  return date.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric"
+  });
+}
+
+/** A unix timestamp as local date and time, "--" for the 0 sentinel. */
+export function formatDateTime(unixSeconds: number): string {
+  if (!unixSeconds) return "--";
+  return new Date(unixSeconds * 1000).toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 }

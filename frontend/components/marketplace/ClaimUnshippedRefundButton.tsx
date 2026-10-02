@@ -8,7 +8,7 @@ import { useCountdown, formatRemaining } from "@/lib/hooks/useCountdown";
 import { useWalletStore } from "@/lib/wallet/store";
 import { NETWORKS } from "@/config/networks";
 import { DEFAULT_NETWORK } from "@/lib/genlayer/contracts";
-import { getMarketplaceTimings } from "@/lib/genlayer/timings";
+import { getEscrowTimings } from "@/lib/genlayer/timings";
 import { formatGenBalance } from "@/lib/wallet/format";
 import type { TxMethod } from "@/lib/tx/types";
 
@@ -41,7 +41,7 @@ export default function ClaimUnshippedRefundButton({
   const [submittedHash, setSubmittedHash] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const timings = getMarketplaceTimings(DEFAULT_NETWORK);
+  const timings = getEscrowTimings(DEFAULT_NETWORK);
   const unlockAt = paidAt + timings.maxShippingDelaySeconds;
   const { remainingSeconds, isReady } = useCountdown(unlockAt);
 

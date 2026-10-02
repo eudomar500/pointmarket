@@ -1,15 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { useForceRefundStuckDispute } from "@/lib/hooks/useForceRefundStuckDispute";
 import { useCountdown, formatRemaining } from "@/lib/hooks/useCountdown";
 import { useWalletStore } from "@/lib/wallet/store";
-import { createReadClient } from "@/lib/genlayer/client";
-import { getAddresses, DEFAULT_NETWORK } from "@/lib/genlayer/contracts";
+import { DEFAULT_NETWORK } from "@/lib/genlayer/contracts";
+import { sameAddress } from "@/lib/genlayer/escrow";
+import { useEscrowInfo } from "@/lib/hooks/useEscrowInfo";
 import { NETWORKS } from "@/config/networks";
-import { getMarketplaceTimings } from "@/lib/genlayer/timings";
+import { getEscrowTimings } from "@/lib/genlayer/timings";
 import { formatGenBalance } from "@/lib/wallet/format";
 import type { TxMethod } from "@/lib/tx/types";
 
@@ -39,39 +40,16 @@ export default function ForceRefundStuckDisputeButton({
   const [open, setOpen] = useState(false);
   const [submittedHash, setSubmittedHash] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const { data: escrowInfo } = useEscrowInfo();
 
-  const timings = getMarketplaceTimings(DEFAULT_NETWORK);
+  const timings = getEscrowTimings(DEFAULT_NETWORK);
   const unlockAt = disputedAt + timings.adminForceRefundDelaySeconds;
   const { remainingSeconds, isReady } = useCountdown(unlockAt);
 
   const connected = status === "connected" && address;
   const isDisputed = state === 3;
 
-  useEffect(() => {
-    if (!connected) {
-      setIsAdmin(false);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      try {
-        const client = createReadClient(DEFAULT_NETWORK);
-        const { marketplace } = getAddresses(DEFAULT_NETWORK);
-        const result = (await client.readContract({
-          address: marketplace,
-          functionName: "is_admin",
-          args: [address],
-        })) as boolean;
-        if (!cancelled) setIsAdmin(Boolean(result));
-      } catch {
-        if (!cancelled) setIsAdmin(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [address, connected]);
+  const isAdmin = Boolean(connected && sameAddress(address, escrowInfo?.admin));
 
   if (!isAdmin || !isDisputed) {
     return null;
@@ -165,15 +143,15 @@ export default function ForceRefundStuckDisputeButton({
                 {title}
               </div>
               <div className="text-xs uppercase tracking-wider text-[var(--text-secondary)] mb-1">
-                Refunding to buyer
+                Split 50/50 between buyer and seller
               </div>
               <div className="text-2xl font-medium text-[var(--text-primary)] font-mono">
-                {formatGenBalance(price)}
+                {formatGenBalance(price / 2n)} each
               </div>
             </div>
 
             <p className="text-sm text-[var(--text-secondary)] mb-6">
-              This admin escape hatch refunds the buyer and returns both bonds to their posters. Use only when the LLM resolution has genuinely stalled. The trade transitions to REFUNDED with no winner declared.
+              This admin escape hatch splits the price 50/50 between buyer and seller and returns each bond to its poster. Use it only when the jury has genuinely stalled. The trade transitions to REFUNDED with no winner declared.
             </p>
 
             {errorMsg ? (

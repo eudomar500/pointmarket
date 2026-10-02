@@ -7,6 +7,9 @@ import { useMarkShipped } from "@/lib/hooks/useMarkShipped";
 import { useWalletStore } from "@/lib/wallet/store";
 import { NETWORKS } from "@/config/networks";
 import { DEFAULT_NETWORK } from "@/lib/genlayer/contracts";
+import { CARRIER_DOMAINS, MAX_CARRIER_DOMAINS } from "@/lib/genlayer/escrow";
+import { useEscrowInfo } from "@/lib/hooks/useEscrowInfo";
+import MediaUpload from "@/components/media/MediaUpload";
 import type { TxMethod } from "@/lib/tx/types";
 
 const METHOD: TxMethod = "mark_shipped";
@@ -30,8 +33,15 @@ export default function MarkShippedDialog({ tradeId, seller, state, disabled, ac
   const [open, setOpen] = useState(false);
   const [trackingNumber, setTrackingNumber] = useState("");
   const [trackingCarrier, setTrackingCarrier] = useState("");
+  const [domains, setDomains] = useState<string[]>([]);
+  const [packingCid, setPackingCid] = useState<string | null>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
   const [submittedHash, setSubmittedHash] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const { data: escrowInfo } = useEscrowInfo();
+  const domainOptions: readonly string[] = escrowInfo?.carrier_domains?.length
+    ? escrowInfo.carrier_domains
+    : CARRIER_DOMAINS;
 
   const connected = status === "connected" && address;
   const isSeller = connected && address.toLowerCase() === seller.toLowerCase();
@@ -48,13 +58,29 @@ export default function MarkShippedDialog({ tradeId, seller, state, disabled, ac
   const tc = trackingCarrier.trim();
   const tnValid = tn.length >= MIN_TRACKING && tn.length <= MAX_TRACKING;
   const tcValid = tc.length >= MIN_CARRIER && tc.length <= MAX_CARRIER;
-  const formValid = tnValid && tcValid;
+  const formValid = tnValid && tcValid && domains.length <= MAX_CARRIER_DOMAINS && !photoBusy;
+
+  const toggleDomain = (domain: string) => {
+    setDomains((current) =>
+      current.includes(domain)
+        ? current.filter((d) => d !== domain)
+        : current.length < MAX_CARRIER_DOMAINS
+          ? [...current, domain]
+          : current,
+    );
+  };
 
   const handleSubmit = async () => {
     if (!formValid) return;
     setErrorMsg(null);
     try {
-      const hash = await markShipped(tradeId, tn, tc);
+      const hash = await markShipped({
+        tradeId,
+        trackingNumber: tn,
+        trackingCarrier: tc,
+        carrierDomains: domains,
+        packingMediaCid: packingCid ?? "",
+      });
       setSubmittedHash(hash);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -67,6 +93,9 @@ export default function MarkShippedDialog({ tradeId, seller, state, disabled, ac
     setOpen(false);
     setTrackingNumber("");
     setTrackingCarrier("");
+    setDomains([]);
+    setPackingCid(null);
+    setPhotoBusy(false);
     setSubmittedHash(null);
     setErrorMsg(null);
   };
@@ -77,7 +106,7 @@ export default function MarkShippedDialog({ tradeId, seller, state, disabled, ac
       onClick={handleClose}
     >
       <div
-        className="w-full max-w-md rounded-xl bg-[var(--bg-deep)] border border-[var(--border-subtle)] p-6 shadow-2xl"
+        className="w-full max-w-md rounded-xl bg-[var(--bg-deep)] border border-[var(--border-subtle)] p-6 shadow-2xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between mb-4">
@@ -161,6 +190,47 @@ export default function MarkShippedDialog({ tradeId, seller, state, disabled, ac
               <div className="mt-1 text-xs text-[var(--text-tertiary)]">
                 {tn.length} / {MAX_TRACKING} (minimum {MIN_TRACKING})
               </div>
+            </div>
+
+            <div className="mb-5">
+              <div className="text-xs uppercase tracking-wider text-[var(--text-secondary)] mb-2">
+                Carrier email domains (optional, up to {MAX_CARRIER_DOMAINS})
+              </div>
+              <p className="text-xs text-[var(--text-secondary)] mb-2">
+                A delivery proof is accepted later only from an email signed by one of these
+                domains. Leave them all unchecked if you will not submit one.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {domainOptions.map((domain) => {
+                  const checked = domains.includes(domain);
+                  const full = !checked && domains.length >= MAX_CARRIER_DOMAINS;
+                  return (
+                    <label
+                      key={domain}
+                      className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm ${checked ? "border-[var(--accent-primary)] text-[var(--text-primary)]" : "border-[var(--border-subtle)] text-[var(--text-secondary)]"} ${full ? "opacity-50" : "cursor-pointer"}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        disabled={pending || full}
+                        onChange={() => toggleDomain(domain)}
+                      />
+                      <span className="font-mono">{domain}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="mb-5">
+              <MediaUpload
+                label="Packing photo (optional)"
+                hint="The item in the box before you seal it. It can only be added now; without it a damaged or not received claim wins by rule."
+                cid={packingCid}
+                onCid={setPackingCid}
+                onBusyChange={setPhotoBusy}
+                disabled={pending}
+              />
             </div>
 
             {errorMsg ? (

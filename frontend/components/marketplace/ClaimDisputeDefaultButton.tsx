@@ -8,20 +8,25 @@ import { useCountdown, formatRemaining } from "@/lib/hooks/useCountdown";
 import { useWalletStore } from "@/lib/wallet/store";
 import { NETWORKS } from "@/config/networks";
 import { DEFAULT_NETWORK } from "@/lib/genlayer/contracts";
-import { getMarketplaceTimings } from "@/lib/genlayer/timings";
+import { BPS, PENALTY_BPS, sameAddress } from "@/lib/genlayer/escrow";
 import { formatGenBalance } from "@/lib/wallet/format";
 import type { TxMethod } from "@/lib/tx/types";
 
-const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
-
 const METHOD: TxMethod = "claim_dispute_default";
+
+const BURDEN_BLOCKED =
+  "Default judgment is closed for this claim: a burden rule applies (an accepted delivery proof against not received, or no unboxing photo for damage or mismatch). Use Resolve instead.";
 
 interface ClaimDisputeDefaultButtonProps {
   tradeId: number;
   buyer: string;
   state: number;
-  disputeInitiator: string;
-  disputedAt: number;
+  responded: boolean;
+  /** Escrow response_until: default judgment opens here. */
+  responseUntil: number;
+  buyerBond: bigint;
+  /** True when burden rule R1, R2 or R3 holds and the Escrow would refuse. */
+  burdenBlocked: boolean;
   price: bigint;
   title: string;
   disabled?: boolean;
@@ -32,8 +37,10 @@ export default function ClaimDisputeDefaultButton({
   tradeId,
   buyer,
   state,
-  disputeInitiator,
-  disputedAt,
+  responded,
+  responseUntil,
+  buyerBond,
+  burdenBlocked,
   price,
   title,
   disabled,
@@ -45,25 +52,19 @@ export default function ClaimDisputeDefaultButton({
   const [submittedHash, setSubmittedHash] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const timings = getMarketplaceTimings(DEFAULT_NETWORK);
-  const unlockAt = disputedAt + timings.disputeResponseWindowSeconds;
-  const { remainingSeconds, isReady } = useCountdown(unlockAt);
+  const { remainingSeconds, isReady } = useCountdown(responseUntil);
 
   const connected = status === "connected" && address;
-  const initiatorSet =
-    disputeInitiator && disputeInitiator.toLowerCase() !== ZERO_ADDRESS;
-  const isInitiator =
-    connected &&
-    initiatorSet &&
-    address.toLowerCase() === disputeInitiator.toLowerCase();
+  const isBuyer = connected && sameAddress(address, buyer);
   const isDisputed = state === 3;
-  const initiatorIsBuyer =
-    initiatorSet &&
-    disputeInitiator.toLowerCase() === buyer.toLowerCase();
 
-  if (!isInitiator || !isDisputed) {
+  // v1.5: only the buyer opens a dispute, so only the buyer wins by default.
+  if (!isBuyer || !isDisputed || responded) {
     return null;
   }
+
+  const penalty = (buyerBond * PENALTY_BPS) / BPS;
+  const payout = price + buyerBond - penalty;
 
   const explorerBase = NETWORKS[DEFAULT_NETWORK].explorerUrl;
   const explorerLink = explorerBase + "/tx/" + (submittedHash ?? "");
@@ -95,10 +96,6 @@ export default function ClaimDisputeDefaultButton({
     }
     return "Win by default";
   })();
-
-  const outcomeText = initiatorIsBuyer
-    ? "The trade will be refunded to you. Your bond is returned. The seller's bond is reduced by a penalty before going to fees."
-    : "The trade funds will be released to you. Your bond is returned. The buyer's bond is reduced by a penalty before going to fees.";
 
   const modalContent = (
     <div
@@ -157,15 +154,15 @@ export default function ClaimDisputeDefaultButton({
                 {title}
               </div>
               <div className="text-xs uppercase tracking-wider text-[var(--text-secondary)] mb-1">
-                Trade price
+                Returning to you
               </div>
               <div className="text-2xl font-medium text-[var(--text-primary)] font-mono">
-                {formatGenBalance(price)}
+                {formatGenBalance(payout)}
               </div>
             </div>
 
             <p className="text-sm text-[var(--text-secondary)] mb-6">
-              The other party did not respond within the response window. You opened this dispute and are entitled to win by default. {outcomeText}
+              The seller did not respond within the response window, so you win by default: the price comes back to you with your bond, minus a 5% penalty on the bond ({formatGenBalance(penalty)}) kept as a fee.
             </p>
 
             {errorMsg ? (
@@ -200,11 +197,15 @@ export default function ClaimDisputeDefaultButton({
     <div>
       <button
         onClick={() => setOpen(true)}
-        disabled={disabled || !isReady}
+        disabled={disabled || !isReady || burdenBlocked}
+        title={burdenBlocked ? BURDEN_BLOCKED : undefined}
         className="w-full px-4 py-2.5 rounded-lg bg-[var(--accent-primary)] text-[var(--bg-deep)] font-medium hover:bg-[var(--accent-dim)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {buttonLabel}
       </button>
+      {burdenBlocked ? (
+        <p className="mt-2 text-xs text-[var(--text-secondary)]">{BURDEN_BLOCKED}</p>
+      ) : null}
       {open && typeof window !== "undefined" ? createPortal(modalContent, document.body) : null}
     </div>
   );

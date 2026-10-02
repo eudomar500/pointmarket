@@ -4,34 +4,30 @@ import { useState } from "react";
 import { useOpenDispute } from "@/lib/hooks/useOpenDispute";
 import { useWalletStore } from "@/lib/wallet/store";
 import { useCountdown, formatRemaining } from "@/lib/hooks/useCountdown";
-import { DEFAULT_NETWORK } from "@/lib/genlayer/contracts";
-import { getMarketplaceTimings } from "@/lib/genlayer/timings";
+import { BUYER_BOND, sameAddress } from "@/lib/genlayer/escrow";
 import DisputeEvidenceDialog from "./DisputeEvidenceDialog";
 import type { TxMethod } from "@/lib/tx/types";
-
-const DISPUTE_BOND_BPS = 500n;
-const BPS_DENOMINATOR = 10000n;
 
 const METHOD: TxMethod = "open_dispute";
 
 interface OpenDisputeButtonProps {
   tradeId: number;
   buyer: string;
-  seller: string;
   state: number;
-  shippedAt: number;
+  /** Escrow claim_at: the buyer's last moment to dispute. */
+  claimAt: number;
   price: bigint;
   title: string;
   disabled?: boolean;
   activeMethod?: string | null;
 }
 
+/** v1.5: only the buyer opens a dispute, on a SHIPPED trade, before claim_at. */
 export default function OpenDisputeButton({
   tradeId,
   buyer,
-  seller,
   state,
-  shippedAt,
+  claimAt,
   price,
   title,
   disabled,
@@ -41,29 +37,21 @@ export default function OpenDisputeButton({
   const { openDispute } = useOpenDispute();
   const [open, setOpen] = useState(false);
 
-  const timings = getMarketplaceTimings(DEFAULT_NETWORK);
-  const closeAt = shippedAt + timings.disputeWindowSeconds;
-  const { remainingSeconds, isReady: windowClosed } = useCountdown(closeAt);
-  const windowOpen = !windowClosed;
+  // No safety buffer here: the deadline is a close, not an unlock.
+  const { remainingSeconds, isReady: windowClosed } = useCountdown(claimAt, 0);
 
   const connected = status === "connected" && address;
-  const isBuyer = connected && address.toLowerCase() === buyer.toLowerCase();
-  const isSeller = connected && address.toLowerCase() === seller.toLowerCase();
-  const isParty = isBuyer || isSeller;
+  const isBuyer = connected && sameAddress(address, buyer);
   const isShipped = state === 2;
 
-  if (!isParty || !isShipped || !windowOpen) {
+  if (!isBuyer || !isShipped || windowClosed) {
     return null;
   }
 
-  const bond = (price * DISPUTE_BOND_BPS) / BPS_DENOMINATOR;
-
-  const buttonLabel = (() => {
-    if (disabled && activeMethod === METHOD) {
-      return "Processing...";
-    }
-    return `Open dispute (${formatRemaining(remainingSeconds)} left)`;
-  })();
+  const buttonLabel =
+    disabled && activeMethod === METHOD
+      ? "Processing..."
+      : `Open dispute (${formatRemaining(remainingSeconds)} left)`;
 
   return (
     <div>
@@ -80,9 +68,11 @@ export default function OpenDisputeButton({
           tradeId={tradeId}
           title={title}
           price={price}
-          bond={bond}
+          bond={BUYER_BOND}
           onClose={() => setOpen(false)}
-          onSubmit={(evidence) => openDispute(tradeId, evidence, bond)}
+          onSubmit={({ claimKind, statement, cid }) =>
+            openDispute({ tradeId, claimKind, statement, cid })
+          }
         />
       ) : null}
     </div>
