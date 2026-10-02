@@ -10,7 +10,9 @@ Usage:
 --arg <value> (repeatable) passes the method arguments in order, typed the way
 the genlayer CLI types them: an integer becomes an int (of any size), true and
 false become a bool, 0x followed by 40 hex digits becomes an Address, and
-anything else is sent as a string.
+anything else is sent as a string. A value prefixed with str: is sent as
+a string with the prefix removed, whatever it looks like (str:6 is the
+string "6").
 
 --value <wei> is sent as the transaction value, for payable methods.
 
@@ -58,6 +60,8 @@ ADDRESS_RE = re.compile(r"^0x[0-9a-fA-F]{40}$")
 
 def parse_arg(text: str):
     """Type one --arg value the way the genlayer CLI does."""
+    if text.startswith("str:"):
+        return text[len("str:"):]
     if INT_RE.match(text):
         return int(text)
     if text == "true":
