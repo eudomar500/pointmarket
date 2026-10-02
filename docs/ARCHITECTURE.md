@@ -1,5 +1,7 @@
 # Architecture
 
+> This page describes v1.4.7 (Marketplace and PredictionMarket); v1.5 (Escrow and Arbiter) is in [`V15_ARCHITECTURE.md`](./V15_ARCHITECTURE.md).
+
 System-level documentation for Pointmarket. Covers contract topology, cross-contract communication, state machines, storage model, and trust assumptions.
 
 ## Topology
