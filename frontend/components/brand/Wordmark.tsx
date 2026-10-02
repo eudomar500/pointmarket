@@ -150,7 +150,7 @@ export default function Wordmark({
             className="font-mono text-[var(--text-tertiary)]"
             style={{ fontSize: 12, lineHeight: 1 }}
           >
-            islandlabs
+            Insidr Labs
           </span>
         </div>
       )}

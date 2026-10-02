@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { ExternalLink, Loader2, MailCheck } from "lucide-react";
 import { useWalletStore } from "@/lib/wallet/store";
 import { useLacreRecord, type LacreLookup } from "@/lib/hooks/useLacreRecord";
@@ -45,9 +46,19 @@ export default function DeliveryProofBlock({ trade, disabled }: DeliveryProofBlo
 
   return (
     <div className="p-6 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-subtle)] space-y-4">
-      <div className="flex items-center gap-2">
-        <MailCheck size={16} className="text-[var(--text-secondary)]" />
-        <div className="text-xs uppercase tracking-wider text-[var(--text-secondary)]">Delivery proof</div>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <MailCheck size={16} className="text-[var(--text-secondary)]" />
+          <div className="text-xs uppercase tracking-wider text-[var(--text-secondary)]">Delivery proof</div>
+        </div>
+        <Link
+          href="/#lacre"
+          title="How delivery proof works"
+          className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-[var(--border-subtle)] bg-[var(--bg-deep)] text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)] transition-colors"
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)]" />
+          Powered by Lacre
+        </Link>
       </div>
       <p className="text-sm text-[var(--text-secondary)]">
         A delivery proof shows the carrier&apos;s system emailed the seller after payment. It does not

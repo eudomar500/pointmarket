@@ -1,6 +1,6 @@
 # Pointmarket
 
-A trust-minimized P2P marketplace with an integrated meta-prediction market, built on [GenLayer](https://genlayer.com) Intelligent Contracts.
+A P2P marketplace with escrow, built on [GenLayer](https://genlayer.com) Intelligent Contracts. Disputes are judged by GenLayer validators reading the photos. Prediction markets are coming soon.
 
 > **Status:** MVP. Live on Testnet Bradbury: the production contract pair plus a demo pair
 > with reduced timing constants, which the frontend targets by default. Studionet is legacy.
@@ -12,7 +12,7 @@ Two contracts that share one substrate:
 
 **1. Escrow-backed P2P marketplace.** Buyers and sellers transact physical goods peer-to-peer. Payment is locked in the contract until delivery is confirmed. When disputes occur, an AI-validator quorum reads both parties' evidence and adjudicates. No human arbiter, no centralized appeals.
 
-**2. Meta-prediction market over marketplace activity.** Binary prediction markets resolve against on-chain Marketplace state. Two categories of markets are supported:
+**2. Prediction markets over marketplace activity (coming soon).** The contract is deployed on Testnet Bradbury, but the app does not expose it yet. Binary prediction markets resolve against on-chain Marketplace state. Two categories of markets are supported:
 
 - **Objective markets:** resolve numerically by reading windowed metrics from the Marketplace (trade count, volume, dispute rate, average price). No LLM involved.
 - **Subjective markets:** resolve via LLM consensus evaluating a specific trade's outcome (was the description honest? is the seller trustworthy based on history?).

@@ -1,6 +1,6 @@
 # Pointmarket frontend
 
-The dApp frontend for Pointmarket, a decentralized P2P marketplace and meta-prediction market protocol on GenLayer.
+The dApp frontend for Pointmarket. P2P marketplace with escrow. Disputes judged by GenLayer validators reading the photos. Prediction markets coming soon.
 
 Built with Next.js 15, TypeScript strict mode, Tailwind CSS v4, and GenLayerJS.
 

@@ -3,11 +3,18 @@
 import React, { useEffect, useRef } from "react";
 import { motion, useAnimation, useInView, type Variants } from "framer-motion";
 import Link from "next/link";
-import { Package, Wallet, Truck, CheckCircle, Scale, ArrowRight, SunMoon, HandCoins, UserCheck, CheckSquare, Zap, Shield, HelpCircle, Activity } from "lucide-react";
+import { Package, Wallet, Truck, CheckCircle, Scale, ArrowRight, SunMoon, UserCheck, Zap, HelpCircle, MailCheck, ShieldCheck, Plug, TrendingUp, Users, ExternalLink } from "lucide-react";
 import Wordmark from "../components/brand/Wordmark";
 import ScrollDot from "../components/brand/ScrollDot";
 import DotIcon from "../components/brand/DotIcon";
 import { useScrollDot } from "../components/brand/ScrollDotContext";
+import { DOCS_URL, LACRE_APP_URL, LACRE_DIRECT_USE_URL, LACRE_REPO_URL, LACRE_ROUTER } from "../config/links";
+import { NETWORKS } from "../config/networks";
+import { DEFAULT_NETWORK, escrowAddress } from "../lib/genlayer/contracts";
+import { useEscrowInfo } from "../lib/hooks/useEscrowInfo";
+import { truncateAddress } from "../lib/wallet/format";
+
+const ESCROW_ADDRESS = escrowAddress(DEFAULT_NETWORK);
 
 // Utility for animating numbers
 function Counter({ value, decimals = 0 }: { value: number; decimals?: number }) {
@@ -49,6 +56,7 @@ function Counter({ value, decimals = 0 }: { value: number; decimals?: number }) 
 
 export default function Page() {
   const { registerAnchor } = useScrollDot();
+  const escrowInfo = useEscrowInfo();
   
   // Section refs
   const heroRef = useRef<HTMLDivElement>(null);
@@ -56,7 +64,8 @@ export default function Page() {
   const howItWorksRef = useRef<HTMLDivElement>(null);
   const statsRef = useRef<HTMLDivElement>(null);
   const whyGenlayerRef = useRef<HTMLDivElement>(null);
-  const activityRef = useRef<HTMLDivElement>(null);
+  const lacreRef = useRef<HTMLDivElement>(null);
+  const marketsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     registerAnchor("hero", heroRef);
@@ -64,7 +73,8 @@ export default function Page() {
     registerAnchor("how-it-works", howItWorksRef);
     registerAnchor("stats", statsRef);
     registerAnchor("why-genlayer", whyGenlayerRef);
-    registerAnchor("activity", activityRef);
+    registerAnchor("lacre", lacreRef);
+    registerAnchor("markets", marketsRef);
   }, [registerAnchor]);
 
   const fadeUp: Variants = {
@@ -107,7 +117,7 @@ export default function Page() {
           </div>
           
           <p className="mt-8 text-[var(--text-secondary)] max-w-lg text-lg">
-            Trustless P2P marketplace + meta-prediction market. Powered by AI consensus on GenLayer.
+            P2P marketplace with escrow. Disputes judged by GenLayer validators reading the photos. Prediction markets coming soon.
           </p>
 
           <div className="mt-10 flex items-center gap-4">
@@ -117,12 +127,14 @@ export default function Page() {
             >
               Browse marketplace
             </Link>
-            <Link 
-              href="/docs" 
+            <a
+              href={DOCS_URL}
+              target="_blank"
+              rel="noopener noreferrer"
               className="border border-[var(--border-strong)] hover:border-[var(--text-secondary)] text-[var(--text-primary)] hover:brightness-110 px-6 py-3 rounded-md font-medium transition-all hover:-translate-y-0.5"
             >
               Read docs
-            </Link>
+            </a>
           </div>
         </motion.div>
       </section>
@@ -166,9 +178,11 @@ export default function Page() {
             {/* Predictors */}
             <div className="flex flex-col items-start text-left">
               <div className="w-4 h-4 rounded-full bg-[var(--accent-primary)] mb-6" />
-              <h3 className="text-xl font-semibold mb-3">Predictors</h3>
+              <h3 className="text-xl font-semibold mb-3 flex items-center gap-2">
+                Predictors <SoonTag />
+              </h3>
               <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-                Bet on marketplace activity. Objective markets read on-chain state; subjective markets resolve via LLM consensus.
+                Take positions on marketplace activity. Objective markets will read on-chain state; subjective markets will resolve via LLM consensus.
               </p>
             </div>
           </div>
@@ -176,7 +190,7 @@ export default function Page() {
       </section>
 
       {/* 3. How it works */}
-      <section id="how-it-works" className="py-32 px-6 bg-[var(--bg-elevated)]">
+      <section id="how-it-works" className="scroll-mt-16 py-32 px-6 bg-[var(--bg-elevated)]">
         <motion.div 
           className="max-w-[1024px] mx-auto"
           initial="hidden"
@@ -186,15 +200,12 @@ export default function Page() {
         >
           <div className="text-center mb-20">
             <h2 className="text-4xl font-medium tracking-tight">How it works.</h2>
-            <p className="mt-4 text-[var(--text-secondary)]">Two flows. One substrate.</p>
+            <p className="mt-4 text-[var(--text-secondary)]">One escrow. Disputes settled on GenLayer.</p>
           </div>
 
           <div className="relative">
-            {/* Connection Line */}
-            <div className="absolute right-[10%] top-12 bottom-12 w-px border-l-2 border-dashed border-[var(--accent-primary)] opacity-50" />
-
             {/* Marketplace flow */}
-            <div className="flex flex-col lg:flex-row items-center justify-between gap-4 mb-16 relative z-10">
+            <div className="flex flex-col lg:flex-row items-center justify-between gap-4 relative z-10">
               <FlowStep icon={<Package size={20} />} label="List" />
               <ArrowRight className="text-[var(--border-strong)] hidden lg:block" size={20} />
               <FlowStep icon={<Wallet size={20} />} label="Buy" />
@@ -207,19 +218,6 @@ export default function Page() {
                 <div ref={howItWorksRef} className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 opacity-0" />
                 <FlowStep icon={<Scale size={20} />} label="Resolve" active />
               </div>
-            </div>
-
-            {/* Prediction flow */}
-            <div className="flex flex-col lg:flex-row items-center justify-between gap-4 relative z-10">
-              <FlowStep icon={<Activity size={20} />} label="Create market" />
-              <ArrowRight className="text-[var(--border-strong)] hidden lg:block" size={20} />
-              <FlowStep icon={<HandCoins size={20} />} label="Bet" />
-              <ArrowRight className="text-[var(--border-strong)] hidden lg:block" size={20} />
-              <FlowStep icon={<Shield size={20} />} label="Close" />
-              <ArrowRight className="text-[var(--border-strong)] hidden lg:block" size={20} />
-              <FlowStep icon={<CheckSquare size={20} />} label="Settle" active />
-              <ArrowRight className="text-[var(--border-strong)] hidden lg:block" size={20} />
-              <FlowStep icon={<Wallet size={20} />} label="Claim" />
             </div>
           </div>
         </motion.div>
@@ -237,31 +235,26 @@ export default function Page() {
           <div className="mb-12 relative">
             <div ref={statsRef} className="absolute left-0 top-1/2 -translate-y-1/2 w-4 h-4 -translate-x-8 opacity-0 hidden md:block" />
             <h2 className="text-3xl font-medium tracking-tight">Live on Testnet Bradbury.</h2>
-            <p className="mt-2 text-xs font-mono text-[var(--text-secondary)]">
-              0x29f58...c6e67 + 0x2b0B5f...cb48E
-            </p>
+            <a
+              href={`${NETWORKS[DEFAULT_NETWORK].explorerUrl}/address/${ESCROW_ADDRESS}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 inline-flex items-center gap-1.5 text-xs font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+            >
+              Escrow {truncateAddress(ESCROW_ADDRESS)} <ExternalLink size={12} />
+            </a>
           </div>
 
-          {/* TODO: connect to get_metrics in phase 3 */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            <StatCard label="Total trades">
-              <Counter value={1} />
-            </StatCard>
-            <StatCard label="Total volume" suffix=" GEN">
-              <Counter value={1.00} decimals={2} />
-            </StatCard>
-            <StatCard label="Prediction markets">
-              <Counter value={2} />
-            </StatCard>
-            <StatCard label="Fees forwarded" suffix=" GEN">
-              <Counter value={0.03} decimals={2} />
+            <StatCard label="Total trades" loading={escrowInfo.isLoading} failed={escrowInfo.isError}>
+              {escrowInfo.data ? <Counter value={Number(escrowInfo.data.total_trades)} /> : null}
             </StatCard>
           </div>
         </motion.div>
       </section>
 
       {/* 5. Why GenLayer */}
-      <section id="why-genlayer" className="py-32 px-6">
+      <section id="why-genlayer" className="scroll-mt-16 py-32 px-6">
         <motion.div 
           className="max-w-[1280px] mx-auto grid grid-cols-1 md:grid-cols-2 gap-16 md:gap-8 items-center"
           initial="hidden"
@@ -321,50 +314,127 @@ export default function Page() {
         </motion.div>
       </section>
 
-      {/* 6. Recent activity */}
-      <section id="activity" className="py-24 px-6 bg-[var(--bg-elevated)] border-t border-[var(--border-subtle)]">
-        <motion.div 
+      {/* 6. Delivery proof (Lacre) */}
+      <section id="lacre" className="scroll-mt-16 py-32 px-6 bg-[var(--bg-elevated)] border-t border-[var(--border-subtle)]">
+        <motion.div
           className="max-w-[1024px] mx-auto relative"
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-100px" }}
           variants={fadeUp}
         >
-          <div ref={activityRef} className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 opacity-0" />
-          
-          <div className="mb-12">
-            <h2 className="text-3xl font-medium tracking-tight">Recent activity.</h2>
-            <p className="mt-2 text-[var(--text-secondary)]">Direct from Testnet Bradbury.</p>
+          <div ref={lacreRef} className="absolute left-0 top-0 w-4 h-4 -translate-x-8 opacity-0 hidden md:block" />
+
+          <div className="max-w-[640px]">
+            <h2 className="text-4xl font-medium tracking-tight">Delivery proof, powered by Lacre.</h2>
+            <p className="mt-6 text-[var(--text-secondary)] text-base leading-relaxed">
+              Lacre is a GenLayer primitive that turns a DKIM-signed email into a public on-chain record.
+              Validators check the signature by consensus, so any contract can trust the record without
+              trusting the person who submitted it.
+            </p>
+            <div className="mt-6 flex flex-wrap items-center gap-6 text-sm font-medium">
+              <a
+                href={LACRE_APP_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-[var(--accent-primary)] hover:text-[var(--accent-hover)] transition-colors"
+              >
+                lacre.in-sidr.xyz <ExternalLink size={14} />
+              </a>
+              <a
+                href={LACRE_REPO_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+              >
+                Source on GitHub <ExternalLink size={14} />
+              </a>
+            </div>
           </div>
 
-          <div className="w-full overflow-x-auto rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-deep)]">
-            <table className="w-full text-sm text-left">
-              <thead className="text-xs text-[var(--text-tertiary)] uppercase bg-[var(--bg-elevated-2)] border-b border-[var(--border-subtle)]">
-                <tr>
-                  <th className="px-6 py-4 font-medium">Type</th>
-                  <th className="px-6 py-4 font-medium">ID</th>
-                  <th className="px-6 py-4 font-medium">Status</th>
-                  <th className="px-6 py-4 font-medium text-right">Time</th>
-                </tr>
-              </thead>
-              <tbody>
-                {/* TODO: replace with live data in phase 3 */}
-                <ActivityRow type="Trade" id="#0" status="COMPLETED" time="6h ago" />
-                <ActivityRow type="Market" id="#1" status="RESOLVED YES" time="6h ago" />
-                <ActivityRow type="Market" id="#0" status="RESOLVED YES" time="6h ago" />
-                <ActivityRow type="Trade" id="#0" status="DELIVERED" time="7h ago" />
-                <ActivityRow type="Trade" id="#0" status="LISTED" time="8h ago" />
-              </tbody>
-            </table>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16">
+            <InfoCard icon={<MailCheck size={20} />} title="In Pointmarket">
+              <ol className="space-y-3 list-decimal pl-4">
+                <li>
+                  After shipping, the seller attests the carrier&apos;s shipping email (amazon.com, ups.com,
+                  fedex.com or dhl.com) on Lacre and submits the record id on the trade.
+                </li>
+                <li>
+                  The Escrow accepts it only if the record is valid and aligned, comes from an allowed carrier,
+                  was signed after the buyer paid, and is not used by another trade.
+                </li>
+                <li>
+                  Once accepted, the seller&apos;s claim window gets shorter, and a &quot;not received&quot; claim
+                  against a valid proof is decided by rule.
+                </li>
+              </ol>
+            </InfoCard>
+
+            <InfoCard icon={<ShieldCheck size={20} />} title="What it proves">
+              <p>
+                A delivery proof shows that the carrier sent that email. It does not show that the parcel
+                reached the door, or what was inside it.
+              </p>
+              <p className="mt-3">
+                It is optional. Trades without one follow the normal claim window and dispute flow.
+              </p>
+            </InfoCard>
+
+            <InfoCard icon={<Plug size={20} />} title="For other GenLayer dapps">
+              <p>
+                Any contract can read a Lacre record through the Lacre Router with{" "}
+                <span className="font-mono text-[var(--text-primary)]">require_attestation</span>.
+              </p>
+              <p className="mt-3 font-mono text-xs text-[var(--text-primary)] break-all">{LACRE_ROUTER}</p>
+              <a
+                href={LACRE_DIRECT_USE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 mt-4 text-[var(--accent-primary)] hover:text-[var(--accent-hover)] transition-colors font-medium"
+              >
+                Integration guide <ArrowRight size={14} />
+              </a>
+            </InfoCard>
+          </div>
+        </motion.div>
+      </section>
+
+      {/* 7. Markets (coming soon) */}
+      <section id="markets" className="scroll-mt-16 py-32 px-6">
+        <motion.div
+          className="max-w-[1024px] mx-auto relative"
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-100px" }}
+          variants={fadeUp}
+        >
+          <div ref={marketsRef} className="absolute left-0 top-0 w-4 h-4 -translate-x-8 opacity-0 hidden md:block" />
+
+          <div className="max-w-[640px]">
+            <div className="flex items-center gap-3">
+              <h2 className="text-4xl font-medium tracking-tight">Markets.</h2>
+              <SoonTag />
+            </div>
+            <p className="mt-6 text-[var(--text-secondary)] text-base leading-relaxed">
+              Markets is the prediction market that will live inside the marketplace. People will take
+              positions on how trades and listings turn out, and GenLayer&apos;s validators will settle each
+              market by consensus. It is not open yet.
+            </p>
           </div>
 
-          <div className="mt-8 flex justify-end">
-            <Link 
-              href="/marketplace" 
-              className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors flex items-center gap-1 text-sm font-medium"
-            >
-              View all <ArrowRight size={14} />
-            </Link>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16">
+            <InfoCard icon={<TrendingUp size={20} />} title="Take a position">
+              <p>Back an outcome on marketplace activity, from a single trade to the market as a whole.</p>
+            </InfoCard>
+            <InfoCard icon={<Users size={20} />} title="Settled by validators">
+              <p>
+                Objective questions read on-chain state. Subjective ones are judged by GenLayer&apos;s validators,
+                with no human resolver.
+              </p>
+            </InfoCard>
+            <InfoCard icon={<Package size={20} />} title="Inside the marketplace">
+              <p>Markets will sit next to the listings they are about, under the same wallet you trade with.</p>
+            </InfoCard>
           </div>
         </motion.div>
       </section>
@@ -385,16 +455,32 @@ function FlowStep({ icon, label, active = false }: { icon: React.ReactNode; labe
   );
 }
 
-function StatCard({ label, children, suffix = "" }: { label: string; children: React.ReactNode; suffix?: string }) {
+function StatCard({
+  label,
+  children,
+  suffix = "",
+  loading = false,
+  failed = false,
+}: {
+  label: string;
+  children: React.ReactNode;
+  suffix?: string;
+  loading?: boolean;
+  failed?: boolean;
+}) {
   return (
     <div className="bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-lg p-6 flex flex-col justify-between">
-      <div className="text-xs font-mono text-opacity-50 text-[var(--text-tertiary)] uppercase tracking-wide mb-2 flex items-center gap-2">
-        <span className="w-1.5 h-1.5 rounded-full bg-[var(--border-strong)] animate-pulse" />
-        Loading...
+      <div className="text-xs font-mono text-[var(--text-tertiary)] uppercase tracking-wide mb-2 flex items-center gap-2">
+        <span
+          className={`w-1.5 h-1.5 rounded-full ${
+            loading ? "bg-[var(--border-strong)] animate-pulse" : failed ? "bg-red-400" : "bg-[var(--success)]"
+          }`}
+        />
+        {loading ? "Loading..." : failed ? "Unavailable" : "On-chain"}
       </div>
       <div className="text-3xl font-semibold mt-2">
-        {children}
-        <span className="text-lg text-[var(--text-secondary)]">{suffix}</span>
+        {loading || failed ? <span className="text-[var(--text-tertiary)]">-</span> : children}
+        {!loading && !failed ? <span className="text-lg text-[var(--text-secondary)]">{suffix}</span> : null}
       </div>
       <div className="mt-2 text-xs font-mono text-[var(--text-tertiary)] uppercase tracking-widest">
         {label}
@@ -403,26 +489,20 @@ function StatCard({ label, children, suffix = "" }: { label: string; children: R
   );
 }
 
-function ActivityRow({ type, id, status, time }: { type: string; id: string; status: string; time: string }) {
-  const isSuccess = status === "COMPLETED" || status.startsWith("RESOLVED");
-  const badgeColors = isSuccess 
-    ? "bg-[var(--success)]/15 text-[var(--success)]"
-    : "bg-[var(--accent-primary)]/15 text-[var(--accent-primary)]";
-
+function InfoCard({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
   return (
-    <tr className="border-b border-[var(--border-subtle)] last:border-0 hover:bg-[var(--bg-elevated)] transition-colors">
-      <td className="px-6 py-4">
-        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-[var(--bg-elevated-2)] border border-[var(--border-subtle)]">
-          {type}
-        </span>
-      </td>
-      <td className="px-6 py-4 font-mono text-[var(--text-secondary)]">{id}</td>
-      <td className="px-6 py-4">
-        <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${badgeColors}`}>
-          {status}
-        </span>
-      </td>
-      <td className="px-6 py-4 text-right text-[var(--text-tertiary)]">{time}</td>
-    </tr>
+    <div className="p-6 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-deep)] flex flex-col">
+      <div className="mb-4 text-[var(--accent-primary)]">{icon}</div>
+      <h3 className="text-base font-semibold mb-3">{title}</h3>
+      <div className="text-sm text-[var(--text-secondary)] leading-relaxed">{children}</div>
+    </div>
+  );
+}
+
+function SoonTag() {
+  return (
+    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider bg-[var(--bg-elevated-2)] border border-[var(--border-subtle)] text-[var(--text-tertiary)]">
+      Coming soon
+    </span>
   );
 }

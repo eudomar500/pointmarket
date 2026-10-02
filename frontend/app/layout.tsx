@@ -28,9 +28,9 @@ export const metadata: Metadata = {
     template: "%s -- pointmarket",
   },
   description:
-    "Trustless P2P marketplace and meta-prediction market. Powered by AI consensus on GenLayer.",
+    "P2P marketplace with escrow. Disputes judged by GenLayer validators reading the photos. Prediction markets coming soon.",
   applicationName: "Pointmarket",
-  authors: [{ name: "Islandlabs" }],
+  authors: [{ name: "Insidr Labs" }],
   keywords: [
     "GenLayer",
     "Intelligent Contracts",
@@ -43,7 +43,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "pointmarket",
     description:
-      "Trustless P2P marketplace and meta-prediction market on GenLayer.",
+      "P2P marketplace with escrow. Disputes judged by GenLayer validators reading the photos. Prediction markets coming soon.",
     url: "https://pointmarket.app",
     siteName: "Pointmarket",
     images: ["/og-image.png"],
@@ -53,7 +53,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "pointmarket",
     description:
-      "Trustless P2P marketplace and meta-prediction market on GenLayer.",
+      "P2P marketplace with escrow. Disputes judged by GenLayer validators reading the photos. Prediction markets coming soon.",
     images: ["/og-image.png"],
   },
   icons: {
