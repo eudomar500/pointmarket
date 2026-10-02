@@ -1101,7 +1101,10 @@ def test_get_eligible_slice(w):
 
 def test_get_contract_info(w):
     info = w.c.get_contract_info()
-    assert info["carrier_domains"] == ["amazon.com", "ups.com", "fedex.com", "dhl.com"]
+    # Production carriers first; a test build may append one (--extra-carrier).
+    assert info["carrier_domains"] == list(K["CARRIER_DOMAINS"])
+    assert info["carrier_domains"][:4] == ["amazon.com", "ups.com", "fedex.com", "dhl.com"]
+    assert len(info["carrier_domains"]) <= 5
     assert info["arbiter"] == str(w.arbiter)
     assert info["router"] == str(w.lacre.router)
     assert info["version"] == K["VERSION"]
