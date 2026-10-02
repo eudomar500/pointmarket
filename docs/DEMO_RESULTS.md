@@ -1,5 +1,87 @@
 # Demo Results: End-to-End On-Chain Validation
 
+The v1.5 Testnet Bradbury runs come first. The v1.4 Studionet record from May 17, 2026 follows below the separator, unchanged.
+
+## v1.5: Testnet Bradbury runs (October 2026)
+
+Two runs of the v1.5 Escrow + Arbiter split (see `docs/V15_ARCHITECTURE.md` and `docs/ARBITER.md`) against demo contract pairs on Testnet Bradbury. Each run carried one trade through a `NOT_AS_DESCRIBED` dispute to an LLM jury verdict and a `settle` on the Escrow. Run 1 used the original two-image jury and needed a retry. Run 2 used the redesigned one-image jury and reached consensus on the first round.
+
+| Field | Value |
+|---|---|
+| Network | GenLayer Testnet Bradbury (Chain ID 4221) |
+| Explorer | https://explorer-bradbury.genlayer.com |
+
+### Run 1: first pair, Arbiter v150 (2026-10-01)
+
+| Contract | Address | Deploy tx |
+|---|---|---|
+| EscrowDemo | [`0xD637Af7BbFeD058EaD69D5639dfD7Ff5cDb2E614`](https://explorer-bradbury.genlayer.com/address/0xD637Af7BbFeD058EaD69D5639dfD7Ff5cDb2E614) | [`0xcf45e3c0...4825a29`](https://explorer-bradbury.genlayer.com/tx/0xcf45e3c0c9a0da8e00360aef271766afaedd2fd4829d8a29a9f29643b4825a29) |
+| Arbiter v150 | [`0xcfc12380da88d2B11eE8a41D781FEF9cbfad438c`](https://explorer-bradbury.genlayer.com/address/0xcfc12380da88d2B11eE8a41D781FEF9cbfad438c) | [`0xa5f93eb9...9b80f819`](https://explorer-bradbury.genlayer.com/tx/0xa5f93eb9f4bb107245248d4d3dc8c62cf86f0e2c5578041214ebc7659b80f819) |
+
+Trade 0 was disputed as `NOT_AS_DESCRIBED`. The v150 jury passed two images to the vision call in a single resolve.
+
+| Step | Tx | Outcome |
+|---|---|---|
+| `resolve` (first attempt) | [`0xb2414523...2daaa5e0`](https://explorer-bradbury.genlayer.com/tx/0xb2414523935b9594c4f3ac996a82ef97202cbe98236cbeab050d28d82daaa5e0) | `FINALIZED` as `VALIDATORS_TIMEOUT`. Final round: 6 `TIMEOUT` vs 5 `AGREE`. No `settle` was emitted. |
+| `resolve` (retry) | [`0xf0559bfb...fa36c94`](https://explorer-bradbury.genlayer.com/tx/0xf0559bfb11a4195013148102154a52ef9a9e3463077e03083ec8b10f9fa36c94) | `LEADER_TIMEOUT` on the first leader, rotated, then reached consensus. Seller won, `settle` ran on the Escrow. |
+
+The first attempt is the interesting one. The transaction reached `FINALIZED`, so a client that only checks the status would read it as done. The consensus result was `VALIDATORS_TIMEOUT`, and the `settle` message emitted by the leader was dropped with it. The trade stayed disputed until the retry.
+
+Settlement after the retry:
+
+| Field | Value |
+|---|---|
+| Winner | seller |
+| `verdict_hash` | `855141f1ade4c965be74613fb13f5cca24c9eea963a9d42c130fbc2c787ea96e` |
+| Price | `100000000000000000` wei (0.1 GEN) |
+| Marketplace fee (2%) | `2000000000000000` wei (0.002 GEN) |
+| Bonds (both parties) | `15000000000000000` wei (0.015 GEN) |
+| Paid to seller | `113000000000000000` wei (0.113 GEN) = price - fee + both bonds |
+| `fees_collected` | `2000000000000000` wei (0.002 GEN) |
+
+The payout settled exactly, no rounding loss.
+
+### Run 2: second pair, Arbiter v151, one image per resolve (2026-10-02)
+
+After Run 1 the jury was redesigned so each resolve sends one image to the vision call instead of two. That is Arbiter v151. A new pair was deployed and wired.
+
+| Contract | Address | Deploy tx |
+|---|---|---|
+| EscrowDemo | [`0xA8a745389ba94E1915789b0b7a7aB8c0eEeD68B3`](https://explorer-bradbury.genlayer.com/address/0xA8a745389ba94E1915789b0b7a7aB8c0eEeD68B3) | [`0xf44790c1...3f8c5c58`](https://explorer-bradbury.genlayer.com/tx/0xf44790c16fe47b73e835632462cd091805cb15ba821e7cd27c8b8f4a3f8c5c58) |
+| Arbiter v151 | [`0xbd5CEABE0cFCF5c4Ae569D027ca9275D1F511fe8`](https://explorer-bradbury.genlayer.com/address/0xbd5CEABE0cFCF5c4Ae569D027ca9275D1F511fe8) | [`0xbcf7ee2e...28667f83`](https://explorer-bradbury.genlayer.com/tx/0xbcf7ee2e1f0b047975ee81cd0ada98c7ef67418cef5952c60be17fdf28667f83) |
+
+Wiring: `EscrowDemo.set_arbiter` -> Arbiter v151, tx [`0x1643ea04...6f743a01`](https://explorer-bradbury.genlayer.com/tx/0x1643ea04c86e2946882d3cbd6ed3893ad1603294e1971052b6470f5e6f743a01).
+
+Trade 0 was listed as "Desk lamp" with the IPFS logo as the unboxing photo, so the image plainly does not match the description. The buyer disputed it as `NOT_AS_DESCRIBED`.
+
+| Step | Method | Tx | Result |
+|---|---|---|---|
+| 1 | `create_listing` | [`0x5495ecef...bd18033b`](https://explorer-bradbury.genlayer.com/tx/0x5495ecefdd0ec94a73a1b74a8a59fcf4bf6ee1aedebc0b490c37e4eabd18033b) | trade_id 0, listing "Desk lamp" |
+| 2 | `accept_listing` | [`0x0bbf50be...94a4026`](https://explorer-bradbury.genlayer.com/tx/0x0bbf50be04c689776a7d7c87abc787c84ec24259e7eae67c976ebc01e94a4026) | paid |
+| 3 | `mark_shipped` | [`0x998388bb...a5a691e`](https://explorer-bradbury.genlayer.com/tx/0x998388bb55ef7d9d3e8d38615026bca173bb090060c5a4b98ed78b73ba5a691e) | shipped |
+| 4 | `open_dispute` | [`0xdb5a271b...559ddd5`](https://explorer-bradbury.genlayer.com/tx/0xdb5a271bddd716020613852c562ad72a776aef8b401e2f01d6b146732559ddd5) | disputed, `NOT_AS_DESCRIBED` |
+| 5 | `respond_to_dispute` | [`0xc82cfa33...d9d1fe5`](https://explorer-bradbury.genlayer.com/tx/0xc82cfa332983f113075b317a578ba8bf1096a622809f8e67e12ea8700d9d1fe5) | seller response recorded |
+| 6 | `resolve` (Arbiter) | [`0x5b29336b...ca4c474e`](https://explorer-bradbury.genlayer.com/tx/0x5b29336bc0f4daf2846927c4989c1ac3078ff674f3bdb9d03a2632faca4c474e) | `ACCEPTED` with `AGREE` on the first round, no timeouts. Buyer won, `settle` ran on the Escrow. |
+
+Settlement:
+
+| Field | Value |
+|---|---|
+| Winner | buyer |
+| `verdict_hash` | `e9966721b4c9aae94bd540550bd17c7ec396f25519a15ed2b8af261500f9dec7` |
+| Paid to buyer | `115000000000000000` wei (0.115 GEN) = price + both bonds |
+| `fees_collected` | `0` |
+
+No fee is taken when the buyer wins; the buyer gets the full price back plus both bonds.
+
+### Findings
+
+1. **A two-image vision call does not fit Bradbury's validator time budget; one image does.** Every validator repeats the leader's vision call to check it. With two images per resolve, enough validators ran out of time that Run 1's first attempt finalized as `VALIDATORS_TIMEOUT` and the retry still lost its first leader. With one image per resolve, Run 2 agreed on the first round with no timeouts.
+2. **After `FINALIZED`, read the consensus result, not only the status.** A `VALIDATORS_TIMEOUT` finalizes too, and it drops the messages the leader emitted. Run 1's first `resolve` was `FINALIZED` with no `settle`. A client that stops at the status will report a verdict that never landed.
+3. **A payable call that reverts keeps its value on Bradbury.** The value is not returned to the sender. Clients must check contract state and the caller's role before sending value. 0.015 GEN is stranded in the first EscrowDemo (`0xD637Af7BbFeD058EaD69D5639dfD7Ff5cDb2E614`) that way.
+
+---
+
 Studionet execution of the Pointmarket protocol on May 17, 2026.
 
 All evidence below is on-chain and independently verifiable in the GenLayer Studio Explorer. This document records the as-executed sequence, the data the protocol generated, and the points where the protocol demonstrated specific behaviors documented in the threat model.

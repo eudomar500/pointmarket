@@ -97,6 +97,8 @@ The demo contracts use reduced timing constants so that evaluators can observe a
 
 A second validation run was executed on Testnet Bradbury on May 28, 2026, against `MarketplaceDemo v903`. Trade #2 (Rolex GMT Master, 0.001 GEN) was carried from `create_listing` through `open_dispute`, `respond_to_dispute`, and LLM verdict in a single session, with the seller and buyer each posting a 5% bond. The verdict was `buyer_wins = true`, reasoning string stored on-chain. Transaction hashes are listed in `CHANGELOG.md` under "Demo contracts v903".
 
+The v1.5 Escrow + Arbiter runs on Testnet Bradbury (October 1 and 2, 2026, two `NOT_AS_DESCRIBED` disputes settled by the LLM jury) are recorded at the top of [`docs/DEMO_RESULTS.md`](./docs/DEMO_RESULTS.md).
+
 ## Repository structure
 
 ```
