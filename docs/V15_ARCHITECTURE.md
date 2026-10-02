@@ -62,14 +62,17 @@ transactions are cheap to validate and never stall on a model or a gateway.
 `claim_unshipped_refund`, `claim_dispute_default` (5% penalty on the initiator
 bond), `force_refund_stuck_dispute`, `claim_stuck_dispute_refund` (50/50 plus
 bonds); pause and unpause; two-step admin transfer; `propose_upgrade` /
-`execute_upgrade` with the 48 h timelock; `withdraw_fees`; `first_seen`,
-`eligible_trades` and the counters. `open_dispute` and `respond_to_dispute`
-stay on the Escrow with new arguments (below), minus the model call.
+`execute_upgrade` with the 48 h timelock; `withdraw_fees` and
+`fees_collected` (read through `get_contract_info`); `first_seen` and
+`eligible_trades`. `open_dispute` and `respond_to_dispute` stay on the Escrow
+with new arguments (below), minus the model call.
 
 **Dropped:** `_resolve_dispute_with_llm` and the prompt;
 `llm_verdict_reasoning` as stored text (replaced by `verdict_hash`);
 `receive_fee`, `withdraw_external_fees` and the fee sender methods; the four
-window views (to Reputation).
+window views (to Reputation); `get_metrics` and the trade counters
+(`completed_count`, `disputed_count`, `refunded_count`, `total_volume`,
+`received_external_fees`), none of which is on the Escrow.
 
 **Added to `TradeData`:**
 
@@ -78,7 +81,7 @@ window views (to Reputation).
 | `listing_media_cid` | str | seller | `create_listing`, optional |
 | `packing_media_cid` | str | seller | `mark_shipped`, optional |
 | `unboxing_media_cid` | str | buyer | `open_dispute` or `set_unboxing_media`, within `UNBOXING_WINDOW` of `delivered_at` or `disputed_at` |
-| `carrier_domains` | str | seller | `mark_shipped`: up to 3 comma-separated domains, each in the admin list, or empty |
+| `carrier_domains` | str | seller | `mark_shipped`: up to 3 comma-separated domains, each in `CARRIER_DOMAINS`, or empty |
 | `delivery_proof` | str | seller | `submit_delivery_proof`: a Lacre Verifier record id, `""` by default |
 | `proof_kind` | str | contract | `"dkim"` when a record was accepted, `""` otherwise; `"dkim+extract"` reserved |
 | `proof_at` | u64 | contract | when the proof was accepted |
@@ -90,10 +93,12 @@ window views (to Reputation).
 | `verdict_hash` | str | arbiter | sha256 hex of the reasoning, from `settle` |
 
 **Contract state:** `arbiter_address: Address` (zero until `set_arbiter`,
-then fixed), `router_address: Address` (constructor), `carrier_domains:
-TreeMap[str, bool]` managed by `add_carrier_domain` / `remove_carrier_domain`
-(admin, at most 8, initial set `amazon.com`, `ups.com`, `fedex.com`,
-`dhl.com`), `proof_messages: TreeMap[str, u256]` (replay guard, 2.2).
+then fixed), `router_address: Address` (constructor), `fees_collected: u256`,
+`proof_messages: TreeMap[str, u256]` (replay guard, 2.2). The carrier domains
+are not state: they are the module constant `CARRIER_DOMAINS = ("amazon.com",
+"ups.com", "fedex.com", "dhl.com")`, a fixed tuple with no admin method to
+change it, so a new domain means a redeploy. `get_contract_info` returns the
+tuple as `carrier_domains`.
 
 **CIDs.** Only raw CIDv1 with sha2-256 is accepted: 59 characters, prefix
 `bafkrei`, base32 that decodes to `01 55 12 20` plus a 32-byte digest. The
@@ -191,14 +196,15 @@ and nothing else, as with `MarketplaceDemo.py` today):
 | one `_pay` helper replacing the four payout functions | 1,300 |
 | delivery proof: helper, `submit_delivery_proof`, carrier list | 1,800 |
 | admin: pause, admin transfer, upgrade, withdraw, `set_arbiter` | 2,600 |
-| views: `get_trade`, `get_contract_info`, `get_metrics`, eligible slice | 1,300 |
+| views: `get_trade`, `get_contract_info`, eligible slice | 1,300 |
 | **total** | **17,800** |
 
-The gate is 18,000 bytes, about 15.25 million gas. The margin is 200 bytes,
-so the levers are named now, in order: carrier domains as a constant tuple
-instead of an admin-managed map (about 400 bytes), then `get_metrics` moved to
-Reputation (about 300). Comments count: if the committed file has them,
-deploy and test the output of `strip_source.py`, not the commented file.
+The gate is 18,000 bytes, about 15.25 million gas. The margin was 200 bytes,
+and both levers named for it are in the deployed code: carrier domains as a
+constant tuple instead of an admin-managed map (about 400 bytes), and no
+`get_metrics` on the Escrow (about 300). Comments count: if the committed file
+has them, deploy and test the output of `strip_source.py`, not the commented
+file.
 
 ### 2.2 Delivery proof, inside the Escrow
 

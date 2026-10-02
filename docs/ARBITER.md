@@ -117,9 +117,9 @@ The prompt is three module constants with nothing party-supplied
 interpolated: `JURY_PROMPT` (the untrusted-data warning), `QUESTIONS[kind]`
 (the question and its three labels) and `JURY_FORMAT` (the answer format).
 The case follows as one JSON object, `{"listing": {"title", "description"}}`.
-`<` and `>` are escaped as `<` and `>`, so the listing cannot fake
-a delimiter and the JSON is unchanged in meaning. Statements and the seller's
-response CID are not sent to the model.
+`<` and `>` in the case data are escaped as `\u003c` and `\u003e`, so the
+listing cannot fake a delimiter and the JSON is unchanged in meaning.
+Statements and the seller's response CID are not sent to the model.
 
 ```
 You check one photo from a marketplace escrow dispute.
