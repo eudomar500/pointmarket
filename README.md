@@ -18,7 +18,7 @@ v1.5 splits the trade into two contracts along the line between deterministic an
 
 **The one-image jury.** Each `resolve` fetches exactly one image (the unboxing photo for `NOT_AS_DESCRIBED` and `DAMAGED`, the packing photo for `NOT_RECEIVED`), checks its sha256 against the CID, and asks the model for a closed label against the listing title and description (`MATCHES` / `DIFFERENT` / `UNCLEAR`, or `INTACT` / `DAMAGED` / `UNCLEAR`). The claimant carries the burden: only `DIFFERENT` (or `DAMAGED`) wins for the buyer. Validators compare the label and the digest result, not the reasoning text.
 
-Why one image: every validator repeats the leader's vision call to check it. The first Arbiter (v150) sent two images per call, and on Bradbury its first `resolve` finalized as `VALIDATORS_TIMEOUT` (final round 6 `TIMEOUT` vs 5 `AGREE`, no `settle` emitted), and the retry lost its first leader to `LEADER_TIMEOUT` before reaching consensus. Arbiter v151 sends one image per call and reached `AGREE` on the first round with no timeouts. See [`docs/DEMO_RESULTS.md`](./docs/DEMO_RESULTS.md), "Findings".
+Why one image: every validator repeats the leader's vision call to check it. The first Arbiter (v150) sent two images per call, and on Bradbury its first `resolve` finalized with result `TIMEOUT` (final round 6 `TIMEOUT` vs 5 `AGREE`, no `settle` delivered), and the retry lost four leaders to `LEADER_TIMEOUT` before reaching consensus. Arbiter v151 sends one image per call and reached `AGREE` on the first round (3 `AGREE`, 2 `TIMEOUT`). See [`docs/DEMO_RESULTS.md`](./docs/DEMO_RESULTS.md), "Findings".
 
 **Delivery proof (optional).** The seller attests the carrier's DKIM-signed email on Lacre and submits the record id. The Escrow accepts it when the record is signed by one of the trade's carrier domains with a key of at least 1024 bits, was signed after the buyer paid, and has not served another trade. An accepted proof shortens the seller's claim window and defeats a bare `NOT_RECEIVED` claim by rule.
 
@@ -129,12 +129,12 @@ The source for 1.4.4 and 1.0.4 is no longer in the tree. These addresses are ret
 
 Two v1.5 runs on Testnet Bradbury, each carrying one trade through a `NOT_AS_DESCRIBED` dispute to a jury verdict and a `settle` on the Escrow:
 
-- **Run 1, 2026-10-01, Arbiter v150 (two images).** The first `resolve` finalized as `VALIDATORS_TIMEOUT` with no `settle`; the retry reached consensus. Seller won and was paid 0.113 GEN (0.1 GEN price, minus the 2% fee, plus both bonds).
-- **Run 2, 2026-10-02, Arbiter v151 (one image).** Trade "Desk lamp" with the IPFS logo as the unboxing photo. `resolve` reached `AGREE` on the first round with no timeouts. Buyer won and was paid 0.115 GEN (the full price plus both bonds, no fee).
+- **Run 1, 2026-10-01, Arbiter v150 (two images).** The first `resolve` finalized with result `TIMEOUT` with no `settle`; the retry reached consensus. Seller won and was paid 0.113 GEN (0.1 GEN price, minus the 2% fee, plus both bonds).
+- **Run 2, 2026-10-02, Arbiter v151 (one image).** Trade "Desk lamp" with the IPFS logo as the unboxing photo. `resolve` reached `AGREE` on the first round (3 `AGREE`, 2 `TIMEOUT`). Buyer won and was paid 0.115 GEN (the full price plus both bonds, no fee).
 
 Every transaction hash, the settlement figures and the findings are in [`docs/DEMO_RESULTS.md`](./docs/DEMO_RESULTS.md).
 
-Earlier runs, on the v1.4 contracts: on Studionet on May 17, 2026, a Marketplace trade ran the happy path and two subjective prediction markets over it resolved to YES by five-validator consensus, with 0.03 GEN of fees forwarded cross-contract (also in `docs/DEMO_RESULTS.md`). On Bradbury on May 28, 2026, trade #2 on `MarketplaceDemo v903` ran from `create_listing` through `open_dispute`, `respond_to_dispute` and an LLM verdict (`buyer_wins = true`); hashes are in `CHANGELOG.md` under "Demo contracts v903".
+Earlier runs, on the v1.4 contracts: on Studionet on May 17, 2026, a Marketplace trade ran the happy path and two subjective prediction markets over it resolved to YES by five-validator consensus, with 0.03 GEN of fees forwarded cross-contract (also in `docs/DEMO_RESULTS.md`). On Bradbury on May 28, 2026, trade #2 on `MarketplaceDemo v903` ran from `create_listing` through `open_dispute`, `respond_to_dispute` and an LLM verdict (`buyer_wins = true`); the pair's deploy and handshake hashes are in `CHANGELOG.md` under "Demo contracts v903".
 
 ## Repository structure
 

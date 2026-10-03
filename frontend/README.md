@@ -2,12 +2,11 @@
 
 The dApp frontend for Pointmarket. P2P marketplace with escrow. Disputes judged by GenLayer validators reading the photos. Prediction markets coming soon.
 
-Built with Next.js 15, TypeScript strict mode, Tailwind CSS v4, and GenLayerJS.
+Built with Next.js 15, TypeScript, Tailwind CSS v4, and GenLayerJS.
 
 ## Status
 
-**Phase 0 (scaffold)**: complete.
-Next phases: brand and landing, wallet connect, contract reads, write operations, dashboard.
+Ported to v1.5; targets EscrowDemo v950 and Arbiter v151 on Testnet Bradbury by default.
 
 ## Setup
 
@@ -32,19 +31,18 @@ frontend/
     genlayer/                SDK wrappers (typed reads, writes, client, types)
     hooks/                   React hooks for contract state
   config/                    Network metadata
-  public/                    Static assets (logo SVGs, favicon, OG image)
 ```
 
 The `lib/genlayer` module is the only place that touches the SDK. All reads and writes go through typed wrappers. UI code never imports `genlayer-js` directly.
 
 ## Deployed contracts
 
-Studionet (chain 61999):
+Testnet Bradbury (chain 4221):
 
 | Contract | Address |
 |---|---|
-| Marketplace | `0x29f58D5ACC8b85250D3Dae2692DEADED346c6e67` |
-| PredictionMarket | `0x2b0B5f76Db290D77DF53250B7f0540fc2D8cb48E` |
+| EscrowDemo | `0xA8a745389ba94E1915789b0b7a7aB8c0eEeD68B3` |
+| Arbiter | `0xbd5CEABE0cFCF5c4Ae569D027ca9275D1F511fe8` |
 
 Source code and protocol documentation: see `../contracts/` and `../docs/` in the repo root.
 
@@ -52,11 +50,11 @@ Source code and protocol documentation: see `../contracts/` and `../docs/` in th
 
 The dApp uses EIP-6963 multi-wallet detection. Any EIP-1193 compatible browser wallet works. Tested with Rabby and MetaMask.
 
-To use the GenLayer Studionet in your wallet:
+To use the GenLayer Testnet Bradbury in your wallet:
 
 1. Open wallet settings, add custom network
-2. RPC URL: `https://studio.genlayer.com:8443/api`
-3. Chain ID: `61999`
+2. RPC URL: `https://rpc-bradbury.genlayer.com`
+3. Chain ID: `4221`
 4. Currency symbol: GEN
 
 ## Code style

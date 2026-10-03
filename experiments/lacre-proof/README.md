@@ -6,16 +6,17 @@ same version number.
 
 ## Why it exists
 
-The Lacre delivery proof has not been exercised end to end on Bradbury yet,
-and that needs a DKIM-signed email from an allowed carrier, sent after the
-buyer paid. A real shipping email from amazon.com, ups.com, fedex.com or
-dhl.com is not available on demand. Any Gmail account can send a signed
-email in a minute, so this build accepts `gmail.com` and lets the whole path
-run: attest on Lacre, submit the record id, the Escrow checks it, the claim
-window shortens.
+The Lacre delivery proof was first exercised end to end on Bradbury on
+2026-10-02 with this build (`0x5E6f188CEdEAF210135F4f23bd9dd68ea836a818`,
+Run 3 in `docs/DEMO_RESULTS.md`). It needs a DKIM-signed email from an
+allowed carrier, sent after the buyer paid. A real shipping email from
+amazon.com, ups.com, fedex.com or dhl.com is not available on demand. Any
+Gmail account can send a signed email in a minute, so this build accepts
+`gmail.com` and lets the whole path run: attest on Lacre, submit the record
+id, the Escrow checks it, the claim window shortens.
 
-It is a test build. It is not the production Escrow, and the frontend does
-not point at it.
+It is a test build. It is not the production Escrow, and the frontend only
+reads it, as archived history.
 
 ## Generate and check
 

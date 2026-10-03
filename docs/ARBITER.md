@@ -37,7 +37,9 @@ After deploy: `Escrow.set_arbiter(<Arbiter>)`, once.
 | `transfer_admin(address)`, `accept_admin()`, `cancel_pending_admin()` | admin, pending admin | two-step, as on the Escrow |
 
 Nothing is payable and there is no upgrade path: `set_arbiter` on the Escrow
-is one-shot, so replacing the Arbiter means redeploying the Escrow.
+is one-shot, so replacing the Arbiter means a redeploy of the Escrow, or a
+timelocked `propose_upgrade` / `execute_upgrade` of its code; the upgrade path
+has not been exercised on Bradbury.
 
 ## resolve
 
@@ -67,8 +69,8 @@ is one-shot, so replacing the Arbiter means redeploying the Escrow.
    - The image is fetched from `ipfs.filebase.io`, then `gateway.pinit.io`,
      with `Accept-Encoding: identity`. A body counts on HTTP 200, at most
      240 KB, with sha256 equal to the CID's digest.
-   - A gateway that answers 200 with other bytes, or an oversized body, makes
-     the image absent. The rules are re-run with it blanked and decide
+   - When a gateway answered 200 but none returned matching bytes within the
+     cap, the image is absent. The rules are re-run with it blanked and decide
      without the model: R2 (or R3 while the window is open) for the unboxing
      image, R6 for the packing image.
    - No gateway answering 200 raises `[EXPECTED] media unavailable`; nothing

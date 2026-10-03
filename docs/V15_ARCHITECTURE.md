@@ -97,8 +97,10 @@ then fixed), `router_address: Address` (constructor), `fees_collected: u256`,
 `proof_messages: TreeMap[str, u256]` (replay guard, 2.2). The carrier domains
 are not state: they are the module constant `CARRIER_DOMAINS = ("amazon.com",
 "ups.com", "fedex.com", "dhl.com")`, a fixed tuple with no admin method to
-change it, so a new domain means a redeploy. `get_contract_info` returns the
-tuple as `carrier_domains`.
+change it, so a new domain means a redeploy, or a timelocked
+`propose_upgrade` / `execute_upgrade` of its code; the upgrade path has not
+been exercised on Bradbury. `get_contract_info` returns the tuple as
+`carrier_domains`.
 
 **CIDs.** Only raw CIDv1 with sha2-256 is accepted: 59 characters, prefix
 `bafkrei`, base32 that decodes to `01 55 12 20` plus a 32-byte digest. The
@@ -215,10 +217,10 @@ would add a cross-contract hop to the one path that pays the seller.
 (the block between `integrate:begin` and `integrate:end`), copied as is: it
 resolves `verifier` through the Router on every use, never caches an address,
 reads only at `StorageType.LATEST_FINAL`, and never raises. On top of it the
-Escrow's `require_attestation(record_id, domains)` adds the payment-date check
-and the replay guard (`lacre/docs/direct-use.md`, rule 5). It does not read
-the KeyCache: Verifier v1.2 attests only against a key the KeyCache holds as
-`active`, so the record itself is the proof.
+Escrow's `_require_attestation(record_id, domains, paid_at)` adds the
+payment-date check and the replay guard (`lacre/docs/direct-use.md`, rule 5).
+It does not read the KeyCache: Verifier v1.2 attests only against a key the
+KeyCache holds as `active`, so the record itself is the proof.
 
 **The write.** `submit_delivery_proof(trade_id, record_id)`, seller only,
 state `SHIPPED` or `DISPUTED` (before `settle`), `delivery_proof` empty. The
@@ -292,8 +294,9 @@ Escrow.
 
 **State:** `escrow_address` (constructor, fixed), `admin`, `pending_admin`,
 `paused`. Nothing per trade. No upgrade path in v1.5: `set_arbiter` is
-one-shot, so replacing the Arbiter means redeploying the Escrow, and nobody
-can swap the judge quietly.
+one-shot, so replacing the Arbiter means a redeploy of the Escrow, or a
+timelocked `propose_upgrade` / `execute_upgrade` of its code; the upgrade path
+has not been exercised on Bradbury. Nobody can swap the judge quietly.
 
 **`resolve(trade_id)`**, anyone. Reads `Escrow.get_trade(trade_id)` at
 `LATEST_FINAL`, so the dispute it judges cannot be appealed away underneath
@@ -344,13 +347,13 @@ superseded. On Bradbury, `resolve` with two images in one vision call timed
 out (round 0 [T,T,A,T,A]; final round 6 TIMEOUT vs 5 AGREE; a retry hit
 LEADER_TIMEOUT), while the media probe, one image per call, got 5 of 5 AGREE.
 The jury now fetches one image (NOT_AS_DESCRIBED and DAMAGED: unboxing;
-NOT_RECEIVED: packing; same gateways, cap and digest check) and asks for a
-closed label against the listing title and description: MATCHES / DIFFERENT /
-UNCLEAR, or INTACT / DAMAGED / UNCLEAR for DAMAGED. Only DIFFERENT (or
-DAMAGED) wins for the buyer; the claimant carries the burden. The validator
-compares the label and the digest result. Rules R1 to R6 are unchanged; a
-digest failure blanks the image and R2, R3 or R6 decides. Interface and
-prompt: `docs/ARBITER.md`.
+NOT_RECEIVED: packing; same gateways and digest check, cap 240 KB) and asks
+for a closed label against the listing title and description: MATCHES /
+DIFFERENT / UNCLEAR, or INTACT / DAMAGED / UNCLEAR for DAMAGED. Only
+DIFFERENT (or DAMAGED) wins for the buyer; the claimant carries the burden.
+The validator compares the label and the digest result. Rules R1 to R6 are
+unchanged; a digest failure blanks the image and R2, R3 or R6 decides.
+Interface and prompt: `docs/ARBITER.md`.
 
 Then `Escrow.settle(trade_id, buyer_wins, sha256(reasoning))` is emitted
 `on='finalized'`. The reasoning text is the nondet block's result, readable
@@ -393,9 +396,9 @@ after `confirm_delivery` feed it; they change no payout.
 | R4 | NOT_AS_DESCRIBED | `listing_media_cid` empty | buyer wins | none |
 | R5 | DAMAGED | `packing_media_cid` empty | buyer wins | none |
 | R6 | NOT_RECEIVED | `packing_media_cid` empty | buyer wins | none |
-| J1 | NOT_AS_DESCRIBED | both complied | jury compares | listing, unboxing |
-| J2 | DAMAGED | both complied | jury compares | packing, unboxing |
-| J3 | NOT_RECEIVED, no proof | seller showed packing | jury | listing, packing |
+| J1 | NOT_AS_DESCRIBED | both complied | jury compares | unboxing |
+| J2 | DAMAGED | both complied | jury compares | unboxing |
+| J3 | NOT_RECEIVED, no proof | seller showed packing | jury | packing |
 
 In words: a buyer who alleges damage without an unboxing CID loses; a seller
 without a listing or packing CID cannot claim good condition; when both
@@ -501,7 +504,7 @@ frontend's network config gains the Escrow, Arbiter and Router addresses.
 3. Size on every commit: `estimate_source.py` on both files (stripped output if
    they carry comments), numbers in the commit message; a commit that crosses a
    gate does not land.
-4. `EscrowDemo.py` and `ArbiterDemo.py` on Bradbury through `deploy_bradbury.py`;
+4. `EscrowDemo.py` and `Arbiter.py` on Bradbury through `deploy_bradbury.py`;
    `set_arbiter`; carrier domains. One full trade, all hashes recorded in the
    style of `docs/DEMO_RESULTS.md`: listing with an image, `mark_shipped` with a
    packing image and `amazon.com`, a delivery proof attested with Lacre and

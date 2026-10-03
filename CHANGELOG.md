@@ -2,12 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
-The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This repository hosts four contracts versioned independently. The production pair:
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). This repository hosts seven contract files versioned independently (v1.5 under [v1.5] below). The legacy production pair:
 
 - `contracts/Marketplace.py`: current version `1.4.7`
 - `contracts/PredictionMarket.py`: current version `1.1.5`
 
-And the demo pair, identical in logic but with reduced timing constants, which is the deployment the frontend currently targets (`DEFAULT_NETWORK = "testnetBradburyDemo"`):
+And the demo pair, identical in logic but with reduced timing constants, which the frontend now reads only, as legacy history:
 
 - `contracts/MarketplaceDemo.py`: current version `903`
 - `contracts/PredictionMarketDemo.py`: current version `902`
@@ -15,10 +15,6 @@ And the demo pair, identical in logic but with reduced timing constants, which i
 Each version entry lists the contracts whose source changed in that entry. Frontend changes are tracked under dated phase entries below. Documentation, scripts, and tests are tracked separately under each version.
 
 ## [Unreleased]
-
-Phase F (write integration on Bradbury) in progress. All 12 Marketplace writes are integrated: the happy path (`create_listing`, `cancel_listing`, `accept_listing`, `mark_shipped`, `confirm_delivery`) plus the disputes and claims block (`claim_after_window`, `claim_unshipped_refund`, `open_dispute`, `respond_to_dispute`, `claim_dispute_default`, `force_refund_stuck_dispute`, `claim_stuck_dispute_refund`).
-
-That is 12 of the 24 writes in `frontend/lib/genlayer/writes.ts`. 12 remain pending: 6 PredictionMarket and 6 admin. Next milestone: the PredictionMarket writes in the frontend.
 
 ## [v1.5] (2026-09-30 to 2026-10-02)
 
@@ -34,8 +30,8 @@ New contract. Trades, windows, all money, photo CIDs (raw CIDv1 on IPFS), disput
 
 New contract. No funds and no trade state. `resolve(trade_id)` reads the trade from the Escrow, applies burden rules R1 to R6, then the jury, and emits `Escrow.settle` on finalization.
 
-- v150 passed two images to one vision call. On Bradbury its first `resolve` finalized as `VALIDATORS_TIMEOUT` (final round 6 `TIMEOUT` vs 5 `AGREE`) with no `settle`, and the retry hit `LEADER_TIMEOUT` before reaching consensus.
-- v151 sends one image per `resolve` (unboxing for `NOT_AS_DESCRIBED` and `DAMAGED`, packing for `NOT_RECEIVED`) and asks for a closed label against the listing. Validators compare the label and the digest result. On Bradbury it agreed on the first round with no timeouts.
+- v150 passed two images to one vision call. On Bradbury its first `resolve` finalized with result `TIMEOUT` (final round 6 `TIMEOUT` vs 5 `AGREE`) with no `settle`, and the retry hit `LEADER_TIMEOUT` before reaching consensus.
+- v151 sends one image per `resolve` (unboxing for `NOT_AS_DESCRIBED` and `DAMAGED`, packing for `NOT_RECEIVED`) and asks for a closed label against the listing. Validators compare the label and the digest result. On Bradbury it agreed on the first round (3 `AGREE`, 2 `TIMEOUT`).
 
 63 direct-mode tests in `tests/test_arbiter.py`. Interface and prompt: `docs/ARBITER.md`.
 
@@ -43,7 +39,7 @@ New contract. No funds and no trade state. `resolve(trade_id)` reads the trade f
 
 - `experiments/wasm-deploy-probe/deploy_bradbury.py`: `--source` deploys a Python contract run through `strip_source.py`, and `--arg` (repeatable) passes constructor arguments.
 - `scripts/write_bradbury.py`: new. Sends one write transaction on Bradbury, with `--value` for payable methods.
-- `scripts/make_escrow_demo.py`: `--extra-carrier` and `--out` build `experiments/lacre-proof/EscrowProofDemo.py`, an Escrow that also accepts `gmail.com`, for the first live run of the delivery proof. The frontend does not point at it.
+- `scripts/make_escrow_demo.py`: `--extra-carrier` and `--out` build `experiments/lacre-proof/EscrowProofDemo.py`, an Escrow that also accepts `gmail.com`, for the first live run of the delivery proof. The frontend reads it only, as archived history.
 
 ### Frontend
 
@@ -58,7 +54,7 @@ Ported to the v1.5 Escrow and Arbiter: photo pinning through Filebase (`app/api/
 
 Run 1 (first pair, 2026-10-01): seller won, paid 0.113 GEN. Run 2 (second pair, 2026-10-02): buyer won, paid 0.115 GEN. Transaction hashes in `docs/DEMO_RESULTS.md`.
 
-The production v1.5 pair is not deployed yet. The Lacre delivery proof has not run live yet.
+The production v1.5 pair is not deployed yet. The Lacre delivery proof ran live once, on 2026-10-02, on `EscrowProofDemo` `0x5E6f188CEdEAF210135F4f23bd9dd68ea836a818` with a Gmail stand-in (Run 3); a real carrier's email is still to do.
 
 ## [Demo contracts v903] (2026-05-28)
 

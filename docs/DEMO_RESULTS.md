@@ -4,7 +4,7 @@ The v1.5 Testnet Bradbury runs come first. The v1.4 Studionet record from May 17
 
 ## v1.5: Testnet Bradbury runs (October 2026)
 
-Two runs of the v1.5 Escrow + Arbiter split (see `docs/V15_ARCHITECTURE.md` and `docs/ARBITER.md`) against demo contract pairs on Testnet Bradbury. Each run carried one trade through a `NOT_AS_DESCRIBED` dispute to an LLM jury verdict and a `settle` on the Escrow. Run 1 used the original two-image jury and needed a retry. Run 2 used the redesigned one-image jury and reached consensus on the first round. Run 3 exercised the Lacre delivery proof on a separate Escrow build, with no dispute.
+Three runs of the v1.5 Escrow + Arbiter split (see `docs/V15_ARCHITECTURE.md` and `docs/ARBITER.md`) against demo contract pairs on Testnet Bradbury. Runs 1 and 2 each carried one trade through a `NOT_AS_DESCRIBED` dispute to an LLM jury verdict and a `settle` on the Escrow. Run 1 used the original two-image jury and needed a retry. Run 2 used the redesigned one-image jury and reached consensus on the first round. Run 3 exercised the Lacre delivery proof on a separate Escrow build, with no dispute.
 
 | Field | Value |
 |---|---|
@@ -22,10 +22,10 @@ Trade 0 was disputed as `NOT_AS_DESCRIBED`. The v150 jury passed two images to t
 
 | Step | Tx | Outcome |
 |---|---|---|
-| `resolve` (first attempt) | [`0xb2414523...2daaa5e0`](https://explorer-bradbury.genlayer.com/tx/0xb2414523935b9594c4f3ac996a82ef97202cbe98236cbeab050d28d82daaa5e0) | `FINALIZED` as `VALIDATORS_TIMEOUT`. Final round: 6 `TIMEOUT` vs 5 `AGREE`. No `settle` was emitted. |
-| `resolve` (retry) | [`0xf0559bfb...fa36c94`](https://explorer-bradbury.genlayer.com/tx/0xf0559bfb11a4195013148102154a52ef9a9e3463077e03083ec8b10f9fa36c94) | `LEADER_TIMEOUT` on the first leader, rotated, then reached consensus. Seller won, `settle` ran on the Escrow. |
+| `resolve` (first attempt) | [`0xb2414523...2daaa5e0`](https://explorer-bradbury.genlayer.com/tx/0xb2414523935b9594c4f3ac996a82ef97202cbe98236cbeab050d28d82daaa5e0) | `FINALIZED` with result `TIMEOUT`. Final round: 6 `TIMEOUT` vs 5 `AGREE`. The `settle` it emitted was never delivered. |
+| `resolve` (retry) | [`0xf0559bfb...fa36c94`](https://explorer-bradbury.genlayer.com/tx/0xf0559bfb11a4195013148102154a52ef9a9e3463077e03083ec8b10f9fa36c94) | Four leader attempts ended in `LEADER_TIMEOUT` with no votes; the fifth reached consensus (3 `AGREE`, 2 `TIMEOUT`). Seller won, `settle` ran on the Escrow. |
 
-The first attempt is the interesting one. The transaction reached `FINALIZED`, so a client that only checks the status would read it as done. The consensus result was `VALIDATORS_TIMEOUT`, and the `settle` message emitted by the leader was dropped with it. The trade stayed disputed until the retry.
+The first attempt is the interesting one. The transaction reached `FINALIZED`, so a client that only checks the status would read it as done. The consensus result was `TIMEOUT`, and the `settle` message emitted by the leader was dropped with it. The trade stayed disputed until the retry.
 
 Settlement after the retry:
 
@@ -61,7 +61,7 @@ Trade 0 was listed as "Desk lamp" with the IPFS logo as the unboxing photo, so t
 | 3 | `mark_shipped` | [`0x998388bb...a5a691e`](https://explorer-bradbury.genlayer.com/tx/0x998388bb55ef7d9d3e8d38615026bca173bb090060c5a4b98ed78b73ba5a691e) | shipped |
 | 4 | `open_dispute` | [`0xdb5a271b...559ddd5`](https://explorer-bradbury.genlayer.com/tx/0xdb5a271bddd716020613852c562ad72a776aef8b401e2f01d6b146732559ddd5) | disputed, `NOT_AS_DESCRIBED` |
 | 5 | `respond_to_dispute` | [`0xc82cfa33...d9d1fe5`](https://explorer-bradbury.genlayer.com/tx/0xc82cfa332983f113075b317a578ba8bf1096a622809f8e67e12ea8700d9d1fe5) | seller response recorded |
-| 6 | `resolve` (Arbiter) | [`0x5b29336b...ca4c474e`](https://explorer-bradbury.genlayer.com/tx/0x5b29336bc0f4daf2846927c4989c1ac3078ff674f3bdb9d03a2632faca4c474e) | `ACCEPTED` with `AGREE` on the first round, no timeouts. Buyer won, `settle` ran on the Escrow. |
+| 6 | `resolve` (Arbiter) | [`0x5b29336b...ca4c474e`](https://explorer-bradbury.genlayer.com/tx/0x5b29336bc0f4daf2846927c4989c1ac3078ff674f3bdb9d03a2632faca4c474e) | `FINALIZED` with `AGREE` on the first round (3 `AGREE`, 2 `TIMEOUT`). Buyer won, `settle` ran on the Escrow. |
 
 Settlement:
 
@@ -109,8 +109,8 @@ Still to do: the same run with a real carrier's shipping email (amazon.com, ups.
 
 ### Findings
 
-1. **A two-image vision call does not fit Bradbury's validator time budget; one image does.** Every validator repeats the leader's vision call to check it. With two images per resolve, enough validators ran out of time that Run 1's first attempt finalized as `VALIDATORS_TIMEOUT` and the retry still lost its first leader. With one image per resolve, Run 2 agreed on the first round with no timeouts.
-2. **After `FINALIZED`, read the consensus result, not only the status.** A `VALIDATORS_TIMEOUT` finalizes too, and it drops the messages the leader emitted. Run 1's first `resolve` was `FINALIZED` with no `settle`. A client that stops at the status will report a verdict that never landed.
+1. **A two-image vision call does not fit Bradbury's validator time budget; one image agreed on the first round.** Every validator repeats the leader's vision call to check it. With two images per resolve, enough validators ran out of time that Run 1's first attempt finalized with result `TIMEOUT` and the retry lost four leaders before the fifth reached consensus. With one image per resolve, Run 2 agreed on the first round, with 2 of 5 validators voting `TIMEOUT`, the same split as the round that settled Run 1's retry.
+2. **After `FINALIZED`, read the consensus result, not only the status.** A `TIMEOUT` result finalizes too, and it drops the messages the leader emitted. Run 1's first `resolve` was `FINALIZED` with no `settle`. A client that stops at the status will report a verdict that never landed.
 3. **A payable call that reverts keeps its value on Bradbury.** The value is not returned to the sender. Clients must check contract state and the caller's role before sending value. 0.015 GEN is stranded in the first EscrowDemo (`0xD637Af7BbFeD058EaD69D5639dfD7Ff5cDb2E614`) that way.
 
 ---

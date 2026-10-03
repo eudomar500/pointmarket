@@ -29,8 +29,8 @@ python3 experiments/wasm-deploy-probe/estimate_source.py /tmp/Escrow.deploy.py
 ```
 
 The constructor takes one argument, the Lacre Router address, which defaults
-to `0xEf37cb72C3A9dD6bCE2f3575B75c94C555F9c8d9` so that `deploy_bradbury.py`,
-which sends no constructor arguments, deploys it as is. After deploy:
+to `0xEf37cb72C3A9dD6bCE2f3575B75c94C555F9c8d9` so that `deploy_bradbury.py`
+deploys it with no `--arg`. After deploy:
 `set_arbiter(<Arbiter>)`, once.
 
 ## Writes

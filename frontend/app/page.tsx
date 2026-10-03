@@ -162,7 +162,7 @@ export default function Page() {
               <div className="w-4 h-4 rounded-full bg-[var(--accent-primary)] mb-6" />
               <h3 className="text-xl font-semibold mb-3">Sellers</h3>
               <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-                List physical goods with escrow protection. AI consensus arbitrates disputes, no human moderator required.
+                List physical goods with escrow protection. Fixed rules first, then validator consensus, settle disputes.
               </p>
             </div>
             
@@ -171,7 +171,7 @@ export default function Page() {
               <div className="w-4 h-4 rounded-full bg-[var(--accent-primary)] mb-6" />
               <h3 className="text-xl font-semibold mb-3">Buyers</h3>
               <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-                Pay with locked funds released only on confirmed delivery. Disputes resolved by validator quorum.
+                Pay into escrow. Funds are released on the buyer&apos;s confirmation, after the claim window, by the dispute verdict, or by the stuck-dispute refund. Disputes resolved by validator quorum.
               </p>
             </div>
 
@@ -266,7 +266,10 @@ export default function Page() {
           <div>
             <h2 className="text-4xl font-medium tracking-tight">Why GenLayer.</h2>
             <p className="mt-6 text-[var(--text-secondary)] text-base leading-relaxed max-w-[480px]">
-              Trustless dispute resolution requires natural-language judgment. Solidity cannot make those calls without a centralized oracle or arbiter. GenLayer&apos;s Optimistic Democracy uses LLM-running validators as the consensus layer. The validators are the arbiters. No human moderation. No off-chain oracle. No single point of trust.
+              Trustless dispute resolution requires natural-language judgment. Solidity cannot make those calls without a centralized oracle or arbiter. GenLayer&apos;s Optimistic Democracy uses LLM-running validators as the consensus layer. The validators are the arbiters. No off-chain oracle.
+            </p>
+            <p className="mt-4 text-[var(--text-secondary)] text-sm leading-relaxed max-w-[480px]">
+              On testnet, an admin key can pause the contracts, force a 50/50 refund of a stuck dispute, withdraw fees and propose a timelocked upgrade.
             </p>
             <a 
               href="https://genlayer.com" 
