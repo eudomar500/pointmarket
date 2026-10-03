@@ -25,7 +25,9 @@ Why one image: every validator repeats the leader's vision call to check it. The
 - It proves the carrier's system sent the seller a message after the buyer paid, and that the seller holds it. A forged or edited email fails the signature.
 - It does not prove the message is about this parcel (only headers are checked), that it says "delivered", or what was in the box. Condition is the photos' job.
 
-The delivery proof is implemented and covered by direct-mode tests with a stubbed Lacre Router and Verifier. Its first live run on Bradbury is pending; the test build for it is in [`experiments/lacre-proof/`](./experiments/lacre-proof/).
+In plain terms: the buyer's payment is already locked in the Escrow. A delivery proof does not release it; it shortens the wait before the seller can claim it, from 7 days after shipping to 72 hours after the proof in production (1 hour to 10 minutes in the demo build), because a carrier's signed shipping email sent after payment backs the seller. That same instant is the buyer's dispute deadline, so the buyer still gets 72 hours from the proof (or the rest of the original 7 days, if that ends sooner). `DAMAGED` and `NOT_AS_DESCRIBED` claims still go to the Arbiter as before; only a `NOT_RECEIVED` claim is decided against the buyer by rule.
+
+The delivery proof is implemented and covered by direct-mode tests with a stubbed Lacre Router and Verifier. Its first live run on Bradbury passed on 2026-10-02 with a Gmail message standing in for a carrier: the proof was accepted, the claim window moved from 1 hour after shipping to 10 minutes after the proof, and the seller claimed 44 minutes earlier than without it. See [`docs/DEMO_RESULTS.md`](./docs/DEMO_RESULTS.md), "Run 3: Lacre delivery proof". The test build is in [`experiments/lacre-proof/`](./experiments/lacre-proof/). A run with a real carrier's email is still to do.
 
 ## Prediction markets (coming soon)
 
@@ -195,7 +197,7 @@ Earlier runs, on the v1.4 contracts: on Studionet on May 17, 2026, a Marketplace
 
 **Pending:**
 
-- First live run of the Lacre delivery proof on Bradbury.
+- Lacre delivery proof with a real carrier's email on Bradbury (the Gmail stand-in run passed, Run 3).
 - Production v1.5 pair (`Escrow.py` and `Arbiter.py` with production constants).
 - Wiring prediction markets to the v1.5 Escrow.
 - Reputation views: read-only views over the Escrow.

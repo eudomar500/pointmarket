@@ -4,7 +4,7 @@ The v1.5 Testnet Bradbury runs come first. The v1.4 Studionet record from May 17
 
 ## v1.5: Testnet Bradbury runs (October 2026)
 
-Two runs of the v1.5 Escrow + Arbiter split (see `docs/V15_ARCHITECTURE.md` and `docs/ARBITER.md`) against demo contract pairs on Testnet Bradbury. Each run carried one trade through a `NOT_AS_DESCRIBED` dispute to an LLM jury verdict and a `settle` on the Escrow. Run 1 used the original two-image jury and needed a retry. Run 2 used the redesigned one-image jury and reached consensus on the first round.
+Two runs of the v1.5 Escrow + Arbiter split (see `docs/V15_ARCHITECTURE.md` and `docs/ARBITER.md`) against demo contract pairs on Testnet Bradbury. Each run carried one trade through a `NOT_AS_DESCRIBED` dispute to an LLM jury verdict and a `settle` on the Escrow. Run 1 used the original two-image jury and needed a retry. Run 2 used the redesigned one-image jury and reached consensus on the first round. Run 3 exercised the Lacre delivery proof on a separate Escrow build, with no dispute.
 
 | Field | Value |
 |---|---|
@@ -73,6 +73,39 @@ Settlement:
 | `fees_collected` | `0` |
 
 No fee is taken when the buyer wins; the buyer gets the full price back plus both bonds.
+
+### Run 3: Lacre delivery proof (2026-10-02)
+
+First live run of the Lacre delivery proof. It used a separate Escrow build, `EscrowProofDemo`, identical to `EscrowDemo` except that `gmail.com` is added to the carrier domains, standing in for a carrier (see `experiments/lacre-proof/README.md`). No dispute and no Arbiter were involved.
+
+| Contract | Address | Deploy tx |
+|---|---|---|
+| EscrowProofDemo | [`0x5E6f188CEdEAF210135F4f23bd9dd68ea836a818`](https://explorer-bradbury.genlayer.com/address/0x5E6f188CEdEAF210135F4f23bd9dd68ea836a818) | [`0x7e49cb69...1c469338`](https://explorer-bradbury.genlayer.com/tx/0x7e49cb69c440226a4b1994d9b8dd3d1ff1d4d2ab67749d68373f39231c469338) |
+
+| Step | Method | Tx | Result |
+|---|---|---|---|
+| 1 | `create_listing` | [`0x9fd0e6d0...3131fcb0`](https://explorer-bradbury.genlayer.com/tx/0x9fd0e6d025ac320aa0bb9ddc24d05ae55fb8c0d134ab8ef2270561a73131fcb0) | listed, price 0.1 GEN |
+| 2 | `accept_listing` | [`0xcc6ccaaf...79e05548`](https://explorer-bradbury.genlayer.com/tx/0xcc6ccaaf5f525a853e864638b1e9be106df7363653c594b98366861b79e05548) | paid |
+| 3 | Lacre attestation | `0x02742f06...779633` (as shown by the Lacre card) | A Gmail message sent after payment, attested with a wallet on Lacre: record 6, `VALID` and `ALIGNED`, finalized |
+| 4 | `mark_shipped` | [`0xcbdefb0b...98dd55e3`](https://explorer-bradbury.genlayer.com/tx/0xcbdefb0b8ae9ad5864fd5e8bf604d9d6180d83bb86ec6bf46aad631f98dd55e3) | shipped, `gmail.com` as the carrier domain |
+| 5 | `submit_delivery_proof` | [`0x093c01ac...d3111f3ec`](https://explorer-bradbury.genlayer.com/tx/0x093c01ac8be78e4315d9e2f5499e14a733891bd94fdf7a7f69d8e32d3111f3ec) | proof accepted |
+| 6 | `claim_after_window` | [`0x543f59a3...b2976765`](https://explorer-bradbury.genlayer.com/tx/0x543f59a38490e686a5efa7c3f9bee51a90f00ba79ac5261fa72e4216b2976765) | accepted, trade completed |
+
+Trade state after step 5:
+
+| Field | Value |
+|---|---|
+| `delivery_proof` | `'6'` |
+| `proof_kind` | `'dkim'` |
+| `shipped_at` | `1790981399` |
+| `proof_at` | `1790981619` |
+| `claim_at` | `1790982219` = `proof_at` + 600, instead of `shipped_at` + 3600 = `1790984999` |
+
+The claim in step 6 was accepted 44 minutes before the window would have opened without the proof. The seller was paid exactly 0.098 GEN: the 0.1 GEN price minus the 2% fee.
+
+The first `submit_delivery_proof` attempt, [`0x86230f5d...7540cb2de`](https://explorer-bradbury.genlayer.com/tx/0x86230f5d3fee69f3286883db2d8c4e44b63445712bad8bd3aa55d537540cb2de), failed because the client sent the record id as an int instead of a string. The write script now takes a `str:` prefix to force a string (`--arg str:6`).
+
+Still to do: the same run with a real carrier's shipping email (amazon.com, ups.com, fedex.com or dhl.com) against the production carrier list.
 
 ### Findings
 
