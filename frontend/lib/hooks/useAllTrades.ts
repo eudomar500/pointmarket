@@ -1,7 +1,12 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
-import { DEFAULT_NETWORK, type LegacyMarketplace } from "@/lib/genlayer/contracts";
 import {
+  DEFAULT_NETWORK,
+  type ArchivedEscrow,
+  type LegacyMarketplace,
+} from "@/lib/genlayer/contracts";
+import {
+  getEscrowContractInfo,
   getLegacyListingDetails,
   getLegacyMetrics,
   getLegacyTradeSummary,
@@ -20,6 +25,8 @@ export type TradeListItem = {
   createdAt: number;
   /** Trade page for this row: /trade/<id> or /legacy/<key>/<id>. */
   href: string;
+  /** Small read-only source label shown next to the title, if any. */
+  sourceLabel?: string;
 };
 
 const READ_DELAY_MS = 250;
@@ -93,6 +100,35 @@ export function useAllTrades() {
     },
     enabled: total > 0,
     staleTime: 30_000,
+  });
+}
+
+/** Every trade on one archived v1.5 Escrow, read only, with the Escrow read code. */
+export function useArchivedTrades(source: ArchivedEscrow | undefined) {
+  return useQuery({
+    queryKey: ["archived-escrow", source?.key ?? "none", "all-trades"],
+    queryFn: async (): Promise<TradeListItem[]> => {
+      if (!source) return [];
+      const client = createReadClient(DEFAULT_NETWORK);
+      const opts = { escrow: source.address };
+      const info = await getEscrowContractInfo(client, DEFAULT_NETWORK, opts);
+      return readSequentially(Number(info.total_trades), async (id) => {
+        const t = await getTrade(client, DEFAULT_NETWORK, id, opts);
+        return {
+          id,
+          title: t.title,
+          seller: t.seller,
+          buyer: t.buyer,
+          price: t.price,
+          state: t.state,
+          createdAt: t.createdAt,
+          href: `/legacy/${source.key}/${id}`,
+          sourceLabel: source.label,
+        };
+      });
+    },
+    enabled: Boolean(source),
+    staleTime: 60_000,
   });
 }
 

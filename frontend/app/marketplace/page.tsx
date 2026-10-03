@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useMemo, type ReactNode } from "react";
-import { useAllTrades, useLegacyTrades } from "@/lib/hooks/useAllTrades";
-import { DEFAULT_NETWORK, legacyMarketplaces } from "@/lib/genlayer/contracts";
+import { useAllTrades, useArchivedTrades, useLegacyTrades } from "@/lib/hooks/useAllTrades";
+import { archivedEscrows, DEFAULT_NETWORK, legacyMarketplaces } from "@/lib/genlayer/contracts";
 import TradeTable from "@/components/marketplace/TradeTable";
 import TradeFilters from "@/components/marketplace/TradeFilters";
 
@@ -13,12 +13,16 @@ const CURRENT = "current";
 
 export default function MarketplacePage() {
   const legacySources = legacyMarketplaces(DEFAULT_NETWORK);
+  const archivedSources = archivedEscrows(DEFAULT_NETWORK);
+  const readOnlySources = [...archivedSources, ...legacySources];
   const [view, setView] = useState<string>(CURRENT);
   const legacySource = legacySources.find((s) => s.key === view);
+  const archivedSource = archivedSources.find((s) => s.key === view);
 
   const current = useAllTrades();
   const legacy = useLegacyTrades(legacySource);
-  const { data: trades = [], isLoading } = legacySource ? legacy : current;
+  const archived = useArchivedTrades(archivedSource);
+  const { data: trades = [], isLoading } = archivedSource ? archived : legacySource ? legacy : current;
 
   const [search, setSearch] = useState("");
   const [stateFilter, setStateFilter] = useState<number | null>(null);
@@ -56,12 +60,12 @@ export default function MarketplacePage() {
         </div>
       </header>
 
-      {legacySources.length > 0 ? (
+      {readOnlySources.length > 0 ? (
         <div className="mb-6 flex flex-wrap items-center gap-2 text-sm">
           <ViewTab active={view === CURRENT} onClick={() => selectView(CURRENT)}>
             Current trades
           </ViewTab>
-          {legacySources.map((source) => (
+          {readOnlySources.map((source) => (
             <ViewTab key={source.key} active={view === source.key} onClick={() => selectView(source.key)}>
               {source.label} (read only)
             </ViewTab>

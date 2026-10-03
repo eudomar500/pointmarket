@@ -20,6 +20,8 @@ const MIN_KEY_BITS = 1024;
 interface DeliveryProofBlockProps {
   trade: EscrowTrade;
   disabled?: boolean;
+  /** Archived Escrow: show an accepted proof, never the submit form. */
+  readOnly?: boolean;
 }
 
 /**
@@ -29,13 +31,14 @@ interface DeliveryProofBlockProps {
  * trade. Once accepted, the claim window can close sooner and a bare "not
  * received" claim loses by rule.
  */
-export default function DeliveryProofBlock({ trade, disabled }: DeliveryProofBlockProps) {
+export default function DeliveryProofBlock({ trade, disabled, readOnly }: DeliveryProofBlockProps) {
   const { address, status } = useWalletStore();
   const shippedOrLater = trade.shippedAt > 0;
   if (!shippedOrLater) return null;
 
   const isSeller = status === "connected" && sameAddress(address, trade.seller);
   const canSubmit =
+    !readOnly &&
     isSeller &&
     !trade.deliveryProof &&
     (trade.state === TradeState.SHIPPED || trade.state === TradeState.DISPUTED);

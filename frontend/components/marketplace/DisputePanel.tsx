@@ -19,6 +19,12 @@ import ResolvePanel from "./ResolvePanel";
 
 interface DisputePanelProps {
   trade: EscrowTrade;
+  /**
+   * Archived Escrow: no Resolve button, no resolve tracking (it is keyed by
+   * trade id on the live Escrow), and the Arbiter link goes to `arbiter`.
+   */
+  readOnly?: boolean;
+  arbiter?: string;
 }
 
 function windowText(until: number): string {
@@ -32,7 +38,7 @@ function windowText(until: number): string {
  * and bonds, the response and unboxing windows, the Resolve button while
  * it is open, and the outcome once the Escrow has paid out.
  */
-export default function DisputePanel({ trade }: DisputePanelProps) {
+export default function DisputePanel({ trade, readOnly, arbiter }: DisputePanelProps) {
   const tracking = useResolveTracking(trade.id, trade.state);
   const isOpen = trade.state === TradeState.DISPUTED;
   const settled = trade.wasDisputed && !isOpen;
@@ -50,7 +56,8 @@ export default function DisputePanel({ trade }: DisputePanelProps) {
 
   const claimLabel = CLAIM_KIND_LABELS[trade.claimKind as ClaimKindValue] ?? `Kind ${trade.claimKind}`;
   const explorer = NETWORKS[DEFAULT_NETWORK].explorerUrl;
-  const resolveTx = tracking.succeeded ? tracking.latest?.txHash : undefined;
+  const resolveTx = !readOnly && tracking.succeeded ? tracking.latest?.txHash : undefined;
+  const arbiterLink = readOnly ? arbiter : arbiterAddress(DEFAULT_NETWORK);
 
   return (
     <div className="p-6 rounded-xl bg-[var(--warning)]/5 border border-[var(--warning)]/20 space-y-6">
@@ -95,7 +102,7 @@ export default function DisputePanel({ trade }: DisputePanelProps) {
         </div>
       </div>
 
-      {isOpen ? <ResolvePanel trade={trade} /> : null}
+      {isOpen && !readOnly ? <ResolvePanel trade={trade} /> : null}
 
       {settled ? (
         <div className="space-y-3">
@@ -120,16 +127,16 @@ export default function DisputePanel({ trade }: DisputePanelProps) {
                 >
                   Resolve transaction <ExternalLink size={11} />
                 </a>
-              ) : (
+              ) : arbiterLink ? (
                 <a
-                  href={`${explorer}/address/${arbiterAddress(DEFAULT_NETWORK)}`}
+                  href={`${explorer}/address/${arbiterLink}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 text-xs text-[var(--accent-primary)] hover:underline"
                 >
                   Resolve transactions on the Arbiter <ExternalLink size={11} />
                 </a>
-              )
+              ) : null
             ) : null}
           </div>
         </div>

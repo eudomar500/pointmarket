@@ -47,6 +47,11 @@ function variant(opts?: ReadOptions): TransactionHashVariant {
   return opts?.final ? TransactionHashVariant.LATEST_FINAL : TransactionHashVariant.LATEST_NONFINAL;
 }
 
+interface EscrowReadOptions extends ReadOptions {
+  /** Read this Escrow (an archived v1.5 one) instead of the network's live Escrow. */
+  escrow?: Address;
+}
+
 // =============================================================================
 // Escrow reads
 // =============================================================================
@@ -55,10 +60,10 @@ export async function getTradeRaw(
   client: Reader,
   network: NetworkKey,
   tradeId: bigint | number,
-  opts?: ReadOptions,
+  opts?: EscrowReadOptions,
 ): Promise<EscrowTradeRaw> {
   const result = await client.readContract({
-    address: escrowAddress(network),
+    address: opts?.escrow ?? escrowAddress(network),
     functionName: "get_trade",
     args: [BigInt(tradeId)],
     transactionHashVariant: variant(opts),
@@ -70,7 +75,7 @@ export async function getTrade(
   client: Reader,
   network: NetworkKey,
   tradeId: bigint | number,
-  opts?: ReadOptions,
+  opts?: EscrowReadOptions,
 ): Promise<EscrowTrade> {
   const raw = await getTradeRaw(client, network, tradeId, opts);
   return parseEscrowTrade(raw, Number(tradeId));
@@ -94,10 +99,10 @@ export async function getEligible(
 export async function getEscrowContractInfo(
   client: Reader,
   network: NetworkKey,
-  opts?: ReadOptions,
+  opts?: EscrowReadOptions,
 ): Promise<EscrowContractInfo> {
   const result = await client.readContract({
-    address: escrowAddress(network),
+    address: opts?.escrow ?? escrowAddress(network),
     functionName: "get_contract_info",
     args: [],
     transactionHashVariant: variant(opts),

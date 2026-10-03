@@ -53,6 +53,11 @@ export default function TradeTable({ trades, isLoading }: TradeTableProps) {
                 #{trade.id}
               </td>
               <td className="px-4 py-3 text-[var(--text-primary)] max-w-[240px] truncate">
+                {trade.sourceLabel ? (
+                  <span className="mr-2 px-1.5 py-0.5 rounded border border-[var(--border-subtle)] text-[10px] font-mono uppercase tracking-wider text-[var(--text-tertiary)]">
+                    {trade.sourceLabel}
+                  </span>
+                ) : null}
                 {trade.title}
               </td>
               <td className="px-4 py-3 text-right font-mono text-[var(--text-primary)]">
